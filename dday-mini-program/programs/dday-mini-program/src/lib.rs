@@ -23,7 +23,7 @@ declare_id!("CS5ZMcpfdSS7WTgTQp7xYeVN9af3UoAdrZyMgKr3s8Bt");
 use anchor_lang::prelude::AccountInfo;
 use anchor_lang::prelude::InterfaceAccount;
 use anchor_lang::solana_program::instruction::{AccountMeta, Instruction};
-use anchor_lang::solana_program::program::invoke_signed;
+use anchor_lang::solana_program::program::{invoke_signed, set_return_data};
 
 // -----------------------------
 // Constants & Seeds
@@ -232,6 +232,21 @@ pub struct MigratedToAmm {
     pub country: u16,
     pub pool_state: Pubkey,
     pub at: i64,
+}
+
+#[event]
+pub struct CountryPrice {
+    pub country: u16,
+    pub mode: MarketMode,
+    pub price_lamports_per_token: u64,
+    pub step_index: u64,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize)]
+pub struct CountryPriceReturn {
+    pub price_lamports_per_token: u64,
+    pub mode: MarketMode,
+    pub step_index: u64,
 }
 
 // -----------------------------
@@ -715,6 +730,54 @@ pub mod world_pvp {
     }
 
     // ===== Presidency & Quotes (off-chain driven) =====
+    pub fn get_country_price(ctx: Context<GetCountryPrice>) -> Result<()> {
+        let c = &ctx.accounts.country;
+        let (price, step_idx) = match c.mode {
+            MarketMode::Curve => (
+                c.step_base_price_lamports.saturating_add(
+                    c.current_step_index
+                        .saturating_mul(c.step_price_increment_lamports),
+                ),
+                c.current_step_index,
+            ),
+            MarketMode::Amm => {
+                let p = (c.quote_price_q64 >> 64).min(u64::MAX as u128) as u64;
+                (p, 0)
+            }
+        };
+        emit!(CountryPrice {
+            country: c.id,
+            mode: c.mode,
+            price_lamports_per_token: price,
+            step_index: step_idx,
+        });
+        Ok(())
+    }
+
+    pub fn get_country_price_view(ctx: Context<GetCountryPrice>) -> Result<()> {
+        let c = &ctx.accounts.country;
+        let (price, step_idx) = match c.mode {
+            MarketMode::Curve => (
+                c.step_base_price_lamports.saturating_add(
+                    c.current_step_index
+                        .saturating_mul(c.step_price_increment_lamports),
+                ),
+                c.current_step_index,
+            ),
+            MarketMode::Amm => {
+                let p = (c.quote_price_q64 >> 64).min(u64::MAX as u128) as u64;
+                (p, 0)
+            }
+        };
+        let ret = CountryPriceReturn {
+            price_lamports_per_token: price,
+            mode: c.mode,
+            step_index: step_idx,
+        };
+        let data = ret.try_to_vec()?;
+        set_return_data(&data);
+        Ok(())
+    }
     pub fn set_president_offchain(
         ctx: Context<SetPresidentOffchain>,
         new_president: Pubkey,
@@ -1381,4 +1444,10 @@ pub struct ExecuteSecondPrize<'info> {
     pub auth: Account<'info, Authorities>,
 
     pub token_program: Program<'info, Token2022>,
+}
+
+#[derive(Accounts)]
+pub struct GetCountryPrice<'info> {
+    #[account(seeds=[COUNTRY_SEED, &country.id.to_le_bytes()], bump=country.bump)]
+    pub country: Account<'info, Country>,
 }

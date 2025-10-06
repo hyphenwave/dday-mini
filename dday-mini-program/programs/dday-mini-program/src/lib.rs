@@ -36,7 +36,7 @@ pub const GLOBAL_TAX_BP: u64 = 50; // 0.50% to global prize pot
 pub const CURVE_FEE_BP_DEFAULT: u64 = 100; // 1.00% protocol fee (kept in treasury)
 pub const NUKE_RUG_BP: u64 = 10_000; // 100% of target SOL treasury is rugged
 pub const TOKEN_DECIMALS: u8 = 9; // All country mints use 9 decimals
-pub const MIGRATE_THRESHOLD_USD_E6_DEFAULT: u64 = 150_000_000; // $150k in 1e6 precision
+pub const MIGRATE_THRESHOLD_USD_E6_DEFAULT: u64 = 80_000_000; // $80k in 1e6 precision
 
 const GLOBAL_SEED: &[u8] = b"GLOBAL";
 const COUNTRY_SEED: &[u8] = b"COUNTRY"; // + id.le_bytes()
@@ -330,6 +330,26 @@ pub mod world_pvp {
 
         c.bump = ctx.bumps.country;
         g.countries_live = g.countries_live.saturating_add(1);
+
+        // Mint fixed max supply (1,000,000,000 tokens with TOKEN_DECIMALS) to the reserve vault.
+        /*  let max_supply_raw: u64 =
+            1_000_000_000u64.saturating_mul(10u64.saturating_pow(TOKEN_DECIMALS as u32));
+        if max_supply_raw > 0 {
+            let seeds: &[&[u8]] = &[AUTH_SEED, &[ctx.bumps.burn_mint_auth]];
+            token::mint_to(
+                CpiContext::new_with_signer(
+                    ctx.accounts.token_program.to_account_info(),
+                    token::MintTo {
+                        mint: ctx.accounts.mint.to_account_info(),
+                        to: ctx.accounts.token_vault.to_account_info(),
+                        authority: ctx.accounts.burn_mint_auth.to_account_info(),
+                    },
+                    &[seeds],
+                ),
+                max_supply_raw,
+            )?;
+            c.supply_minted = c.supply_minted.saturating_add(max_supply_raw);
+        }*/
         Ok(())
     }
 

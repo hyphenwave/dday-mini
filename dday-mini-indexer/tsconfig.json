@@ -1,0 +1,32 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "commonjs",
+    "lib": ["ES2022"],
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "composite": true,
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "moduleResolution": "node",
+    "allowSyntheticDefaultImports": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "references": [
+    { "path": "./packages/shared" },
+    { "path": "./packages/president-updater" },
+    { "path": "./packages/price-updater" },
+    { "path": "./packages/round-scheduler" },
+    { "path": "./packages/amm-migrator" },
+    { "path": "./packages/buyback-orchestrator" },
+    { "path": "./packages/api-gateway" }
+  ],
+  "exclude": ["node_modules", "**/dist", "**/*.test.ts"]
+}

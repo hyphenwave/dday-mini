@@ -34,7 +34,7 @@ pub const BASIS_POINTS: u64 = 10_000; // 100% = 10000 bp
 
 pub const GLOBAL_TAX_BP: u64 = 50; // 0.50% to global prize pot
 pub const CURVE_FEE_BP_DEFAULT: u64 = 100; // 1.00% protocol fee (kept in treasury)
-pub const NUKE_RUG_BP: u64 = 5_000; // 50% of target SOL treasury is rugged
+pub const NUKE_RUG_BP: u64 = 10_000; // 100% of target SOL treasury is rugged
 pub const TOKEN_DECIMALS: u8 = 9; // All country mints use 9 decimals
 pub const MIGRATE_THRESHOLD_USD_E6_DEFAULT: u64 = 150_000_000; // $150k in 1e6 precision
 
@@ -536,16 +536,39 @@ pub mod world_pvp {
             WpError::Slippage
         );
 
+        // global tax on sell
+        let global_tax =
+            (sol_out_u64 as u128 * (GLOBAL_TAX_BP as u128) / (BASIS_POINTS as u128)) as u64;
+        let seller_amount = sol_out_u64.saturating_sub(global_tax);
+
+        if global_tax > 0 {
+            **ctx
+                .accounts
+                .sol_treasury
+                .to_account_info()
+                .try_borrow_mut_lamports()? -= global_tax;
+            **ctx
+                .accounts
+                .global
+                .to_account_info()
+                .try_borrow_mut_lamports()? += global_tax;
+            ctx.accounts.global.prize_pot_lamports = ctx
+                .accounts
+                .global
+                .prize_pot_lamports
+                .saturating_add(global_tax);
+        }
+
         **ctx
             .accounts
             .sol_treasury
             .to_account_info()
-            .try_borrow_mut_lamports()? -= sol_out_u64;
+            .try_borrow_mut_lamports()? -= seller_amount;
         **ctx
             .accounts
             .seller
             .to_account_info()
-            .try_borrow_mut_lamports()? += sol_out_u64;
+            .try_borrow_mut_lamports()? += seller_amount;
 
         let round_index = ctx.accounts.global.round_index;
         let country_id = ctx.accounts.country.id;
@@ -855,6 +878,7 @@ pub mod world_pvp {
 
         target.status = CountryStatus::Nuked;
         g.nuke_consumed_for_round = true;
+        g.countries_live = g.countries_live.saturating_sub(1);
 
         emit!(NukeLaunched {
             round_index: g.round_index,

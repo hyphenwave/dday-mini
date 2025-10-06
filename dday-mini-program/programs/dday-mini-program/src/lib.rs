@@ -94,6 +94,8 @@ pub struct Global {
     pub countries_live: u16,
     pub paused: bool,
     pub bump: u8,
+    // Second prize lifecycle
+    pub second_prize_claimed_round: u32, // round index that claimed the second prize (0 = none)
 }
 
 #[account]
@@ -223,6 +225,7 @@ pub struct SecondPrizeExecuted {
     pub winner_country_id: u16,
     pub sol_spent: u64,
     pub tokens_burned: u64,
+    pub mode: MarketMode,
 }
 #[event]
 pub struct CurveFrozen {
@@ -272,6 +275,7 @@ pub mod world_pvp {
         g.countries_live = 0;
         g.paused = false;
         g.bump = ctx.bumps.global;
+        g.second_prize_claimed_round = 0;
 
         ctx.accounts.auth.burn_mint_auth_bump = ctx.bumps.burn_mint_auth;
         ctx.accounts.auth.bump = ctx.bumps.auth;
@@ -890,6 +894,7 @@ pub mod world_pvp {
         );
         g.winner_country_id = winner_country_id;
         g.nuke_consumed_for_round = false;
+        g.second_prize_claimed_round = 0; // reset claim flag for new round
         emit!(RoundEnded {
             round_index: g.round_index,
             winner_country_id
@@ -1032,6 +1037,15 @@ pub mod world_pvp {
     ) -> Result<()> {
         let g = &mut ctx.accounts.global;
         require!(!g.paused, WpError::Paused);
+        // prize can be executed only once per round and only for current winner
+        require!(
+            g.winner_country_id == ctx.accounts.winner_country.id,
+            WpError::Unauthorized
+        );
+        require!(
+            g.second_prize_claimed_round != g.round_index,
+            WpError::Unauthorized
+        );
         let pot = g.prize_pot_lamports;
         require!(pot > 0, WpError::InvalidAmount);
 
@@ -1040,16 +1054,18 @@ pub mod world_pvp {
             .global_account
             .to_account_info()
             .try_borrow_mut_lamports()? -= pot;
-        **ctx
-            .accounts
-            .winner_sol_treasury
-            .to_account_info()
-            .try_borrow_mut_lamports()? += pot;
         g.prize_pot_lamports = 0;
+        g.second_prize_claimed_round = g.round_index;
 
         let mut burned: u64 = 0;
         if matches!(ctx.accounts.winner_country.mode, MarketMode::Amm) {
             if let Some(data) = _raydium_ix_data {
+                // Credit prize budget to winner treasury for AMM path
+                **ctx
+                    .accounts
+                    .winner_sol_treasury
+                    .to_account_info()
+                    .try_borrow_mut_lamports()? += pot;
                 require!(
                     accounts_contains(
                         ctx.remaining_accounts,
@@ -1120,7 +1136,8 @@ pub mod world_pvp {
             round_index: g.round_index,
             winner_country_id: ctx.accounts.winner_country.id,
             sol_spent: pot,
-            tokens_burned: burned
+            tokens_burned: burned,
+            mode: ctx.accounts.winner_country.mode,
         });
         Ok(())
     }
@@ -1415,9 +1432,11 @@ pub struct SeedRaydiumPool<'info> {
 
     #[account(mut)]
     pub token_vault: InterfaceAccount<'info, TokenAccount>,
+
     /// CHECK: SOL treasury PDA (source of SOL)
     #[account(mut, seeds=[TREASURY_SEED, &country.id.to_le_bytes()], bump)]
     pub sol_treasury: UncheckedAccount<'info>,
+
     // PDA-owned token account (ATA of burn_mint_auth) to hold liquidity tokens
     #[account(init_if_needed, payer=authority, associated_token::mint=mint, associated_token::authority=burn_mint_auth, associated_token::token_program=token_program)]
     pub liquidity_token_account: InterfaceAccount<'info, TokenAccount>,
@@ -1425,6 +1444,7 @@ pub struct SeedRaydiumPool<'info> {
     /// CHECK: signer PDA for mint authority
     #[account(seeds=[AUTH_SEED], bump=auth.burn_mint_auth_bump)]
     pub burn_mint_auth: UncheckedAccount<'info>,
+
     #[account(seeds=[AUTH_SEED], bump=auth.bump)]
     pub auth: Account<'info, Authorities>,
 

@@ -20,7 +20,10 @@ use anchor_spl::token_interface as token;
 use anchor_spl::token_interface::{Mint, Token2022, TokenAccount};
 
 declare_id!("CS5ZMcpfdSS7WTgTQp7xYeVN9af3UoAdrZyMgKr3s8Bt");
+use anchor_lang::prelude::AccountInfo;
 use anchor_lang::prelude::InterfaceAccount;
+use anchor_lang::solana_program::instruction::{AccountMeta, Instruction};
+use anchor_lang::solana_program::program::invoke_signed;
 
 // -----------------------------
 // Constants & Seeds
@@ -32,6 +35,7 @@ pub const BASIS_POINTS: u64 = 10_000; // 100% = 10000 bp
 pub const GLOBAL_TAX_BP: u64 = 50; // 0.50% to global prize pot
 pub const CURVE_FEE_BP_DEFAULT: u64 = 100; // 1.00% protocol fee (kept in treasury)
 pub const NUKE_RUG_BP: u64 = 5_000; // 50% of target SOL treasury is rugged
+pub const TOKEN_DECIMALS: u8 = 9; // All country mints use 9 decimals
 
 const GLOBAL_SEED: &[u8] = b"GLOBAL";
 const COUNTRY_SEED: &[u8] = b"COUNTRY"; // + id.le_bytes()
@@ -110,6 +114,13 @@ pub struct Country {
     pub supply_minted: u64,
     pub supply_burned: u64,
     pub curve_fee_bp: u64,
+
+    // Step-curve parameters (Pump.fun style)
+    pub step_tokens: u64,                   // tokens per step bucket
+    pub step_base_price_lamports: u64,      // price per token at step 0
+    pub step_price_increment_lamports: u64, // price increment per step
+    pub current_step_index: u64,            // current step bucket index
+    pub sold_in_current_step: u64,          // tokens sold within current step
 
     // Presidency (off-chain maintained)
     pub president: Pubkey,
@@ -298,6 +309,13 @@ pub mod world_pvp {
             curve_fee_bp
         };
 
+        // Default step-curve config (can be tuned off-chain via an admin ix if desired)
+        c.step_tokens = 1_000_000; // 1M tokens per step
+        c.step_base_price_lamports = 1_000; // 0.000001 SOL
+        c.step_price_increment_lamports = 1_000; // +0.000001 SOL per step
+        c.current_step_index = 0;
+        c.sold_in_current_step = 0;
+
         c.president = Pubkey::default();
         c.top_holder_cached = 0;
 
@@ -355,38 +373,76 @@ pub mod world_pvp {
                 .saturating_add(global_tax);
         }
 
-        // curve math
-        let (tokens_out, price_bp) = curve_tokens_out(
-            &ctx.accounts.country,
-            treasury.lamports() as u128,
-            accessor::amount(&ctx.accounts.token_vault.to_account_info())? as u128,
-            (sol_in - global_tax) as u128,
-        );
-        let tokens_out_u64: u64 = tokens_out.min(u64::MAX as u128) as u64;
-        require!(
-            tokens_out_u64 >= min_tokens_out && tokens_out_u64 > 0,
-            WpError::Slippage
-        );
+        // step-curve pricing using fixed-supply transfers from reserve vault
+        let mut tokens_remaining_to_sell = min_tokens_out; // minimum target in tokens
+        let mut sol_budget = (sol_in - global_tax) as u64;
+        let mut tokens_to_send: u64 = 0;
 
-        // mint to buyer (AUTH signer)
+        // compute available in vault
+        let mut vault_amount = accessor::amount(&ctx.accounts.token_vault.to_account_info())?;
+        require!(vault_amount > 0, WpError::InvalidAmount);
+
+        while tokens_remaining_to_sell > 0 && sol_budget > 0 && vault_amount > 0 {
+            let step_size = ctx.accounts.country.step_tokens;
+            let step_sold = ctx.accounts.country.sold_in_current_step;
+            let remaining_in_step = step_size.saturating_sub(step_sold);
+            if remaining_in_step == 0 {
+                // advance step price bucket
+                ctx.accounts.country.current_step_index =
+                    ctx.accounts.country.current_step_index.saturating_add(1);
+                ctx.accounts.country.sold_in_current_step = 0;
+                continue;
+            }
+
+            let price_per_token = ctx
+                .accounts
+                .country
+                .step_base_price_lamports
+                .saturating_add(
+                    ctx.accounts
+                        .country
+                        .current_step_index
+                        .saturating_mul(ctx.accounts.country.step_price_increment_lamports),
+                );
+            if price_per_token == 0 {
+                break;
+            }
+            // max tokens purchasable by budget and step capacity and vault balance
+            let by_budget = sol_budget / price_per_token;
+            let can_buy_now = by_budget.min(remaining_in_step).min(vault_amount);
+            if can_buy_now == 0 {
+                break;
+            }
+            let cost = can_buy_now.saturating_mul(price_per_token);
+            sol_budget = sol_budget.saturating_sub(cost);
+            tokens_to_send = tokens_to_send.saturating_add(can_buy_now);
+            tokens_remaining_to_sell = tokens_remaining_to_sell.saturating_sub(can_buy_now);
+            ctx.accounts.country.sold_in_current_step = ctx
+                .accounts
+                .country
+                .sold_in_current_step
+                .saturating_add(can_buy_now);
+            vault_amount = vault_amount.saturating_sub(can_buy_now);
+        }
+
+        require!(tokens_to_send >= min_tokens_out, WpError::Slippage);
+
+        // transfer from reserve vault to buyer (AUTH signer) with decimals
         let seeds: &[&[u8]] = &[AUTH_SEED, &[ctx.accounts.auth.burn_mint_auth_bump]];
-        token::mint_to(
+        token::transfer_checked(
             CpiContext::new_with_signer(
                 ctx.accounts.token_program.to_account_info(),
-                token::MintTo {
+                token::TransferChecked {
+                    from: ctx.accounts.token_vault.to_account_info(),
                     mint: ctx.accounts.mint.to_account_info(),
                     to: ctx.accounts.buyer_ata.to_account_info(),
                     authority: ctx.accounts.burn_mint_auth.to_account_info(),
                 },
                 &[seeds],
             ),
-            tokens_out_u64,
+            tokens_to_send,
+            TOKEN_DECIMALS,
         )?;
-        ctx.accounts.country.supply_minted = ctx
-            .accounts
-            .country
-            .supply_minted
-            .saturating_add(tokens_out_u64);
 
         let round_index = ctx.accounts.global.round_index;
         let country_id = ctx.accounts.country.id;
@@ -395,8 +451,8 @@ pub mod world_pvp {
             country: country_id,
             buyer: payer.key(),
             sol_in,
-            tokens_out: tokens_out_u64,
-            price_bp
+            tokens_out: tokens_to_send,
+            price_bp: 0
         });
         Ok(())
     }
@@ -419,27 +475,65 @@ pub mod world_pvp {
         );
         require!(tokens_in > 0, WpError::InvalidAmount);
 
-        // burn from seller
-        token::burn(
+        // transfer tokens back to reserve vault (checked)
+        token::transfer_checked(
             CpiContext::new(
                 ctx.accounts.token_program.to_account_info(),
-                token::Burn {
-                    mint: ctx.accounts.mint.to_account_info(),
+                token::TransferChecked {
                     from: ctx.accounts.seller_ata.to_account_info(),
+                    mint: ctx.accounts.mint.to_account_info(),
+                    to: ctx.accounts.token_vault.to_account_info(),
                     authority: ctx.accounts.seller.to_account_info(),
                 },
             ),
             tokens_in,
+            TOKEN_DECIMALS,
         )?;
 
         // compute SOL out
-        let (sol_out, price_bp) = curve_sol_out(
-            &ctx.accounts.country,
-            ctx.accounts.sol_treasury.lamports() as u128,
-            accessor::amount(&ctx.accounts.token_vault.to_account_info())? as u128,
-            tokens_in as u128,
-        );
-        let sol_out_u64: u64 = sol_out.min(u64::MAX as u128) as u64;
+        // step price-based payout: pay at current bucket price downward
+        let mut tokens_remaining = tokens_in;
+        let mut sol_out_u64: u64 = 0;
+        while tokens_remaining > 0 {
+            let step_sold = ctx.accounts.country.sold_in_current_step;
+            let consumed_in_step = step_sold.min(ctx.accounts.country.step_tokens);
+            if consumed_in_step == 0 {
+                // nothing sold in current step, move back one step if possible
+                if ctx.accounts.country.current_step_index == 0 {
+                    break;
+                }
+                ctx.accounts.country.current_step_index =
+                    ctx.accounts.country.current_step_index.saturating_sub(1);
+                ctx.accounts.country.sold_in_current_step = ctx.accounts.country.step_tokens;
+                continue;
+            }
+            let available_to_buyback = consumed_in_step.min(tokens_remaining);
+            let price_per_token = ctx
+                .accounts
+                .country
+                .step_base_price_lamports
+                .saturating_add(
+                    ctx.accounts
+                        .country
+                        .current_step_index
+                        .saturating_mul(ctx.accounts.country.step_price_increment_lamports),
+                );
+            sol_out_u64 =
+                sol_out_u64.saturating_add(available_to_buyback.saturating_mul(price_per_token));
+            tokens_remaining = tokens_remaining.saturating_sub(available_to_buyback);
+            ctx.accounts.country.sold_in_current_step = ctx
+                .accounts
+                .country
+                .sold_in_current_step
+                .saturating_sub(available_to_buyback);
+            if ctx.accounts.country.sold_in_current_step == 0
+                && ctx.accounts.country.current_step_index > 0
+            {
+                ctx.accounts.country.current_step_index =
+                    ctx.accounts.country.current_step_index.saturating_sub(1);
+                ctx.accounts.country.sold_in_current_step = ctx.accounts.country.step_tokens;
+            }
+        }
         require!(
             sol_out_u64 >= min_sol_out && sol_out_u64 > 0,
             WpError::Slippage
@@ -464,7 +558,7 @@ pub mod world_pvp {
             seller: ctx.accounts.seller.key(),
             tokens_in,
             sol_out: sol_out_u64,
-            price_bp
+            price_bp: 0
         });
         Ok(())
     }
@@ -482,8 +576,10 @@ pub mod world_pvp {
         Ok(())
     }
 
-    /// Transfers seeding liquidity to an external seeding wallet/token account and flips to AMM.
-    /// Off-chain will wrap SOL→WSOL and call Raydium add-liquidity using these funds.
+    /// Transfers seeding liquidity into program-owned custody (PDA) and records Raydium pool.
+    /// SOL moves from country treasury to the program signer PDA; tokens move from program vault
+    /// to a PDA-owned token account. This ensures the program owns liquidity and can later
+    /// add/remove liquidity via CPI. Finally, it records Raydium pool addresses and flips mode → Amm.
     pub fn seed_raydium_pool(
         ctx: Context<SeedRaydiumPool>,
         raydium_program: Pubkey,
@@ -492,6 +588,7 @@ pub mod world_pvp {
         raydium_vault_b: Pubkey,
         sol_seed_lamports: u64,
         token_seed_amount: u64,
+        raydium_ix_data: Vec<u8>,
     ) -> Result<()> {
         require!(
             ctx.accounts.authority.key() == ctx.accounts.global.authority,
@@ -501,7 +598,7 @@ pub mod world_pvp {
         require!(matches!(c.mode, MarketMode::Curve), WpError::WrongMode);
         require!(c.curve_frozen, WpError::CurveNotFrozen);
 
-        // Move SOL from treasury to the designated seeding wallet
+        // Move SOL from treasury to the program PDA (burn_mint_auth)
         if sol_seed_lamports > 0 {
             **ctx
                 .accounts
@@ -510,26 +607,54 @@ pub mod world_pvp {
                 .try_borrow_mut_lamports()? -= sol_seed_lamports;
             **ctx
                 .accounts
-                .seeding_wallet
+                .burn_mint_auth
                 .to_account_info()
                 .try_borrow_mut_lamports()? += sol_seed_lamports;
         }
 
-        // Move tokens from program vault (owned by AUTH PDA) to the seeding token account
+        // Move tokens from program vault (owned by AUTH PDA) to the PDA-owned liquidity token account
         if token_seed_amount > 0 {
             let seeds: &[&[u8]] = &[AUTH_SEED, &[ctx.accounts.auth.burn_mint_auth_bump]];
-            token::transfer(
+            token::transfer_checked(
                 CpiContext::new_with_signer(
                     ctx.accounts.token_program.to_account_info(),
-                    token::Transfer {
+                    token::TransferChecked {
                         from: ctx.accounts.token_vault.to_account_info(),
-                        to: ctx.accounts.seeding_token_account.to_account_info(),
+                        mint: ctx.accounts.mint.to_account_info(),
+                        to: ctx.accounts.liquidity_token_account.to_account_info(),
                         authority: ctx.accounts.burn_mint_auth.to_account_info(),
                     },
                     &[seeds],
                 ),
                 token_seed_amount,
+                TOKEN_DECIMALS,
             )?;
+        }
+
+        // Raydium CPI (optional): if instruction data provided, forward to Raydium
+        if !raydium_ix_data.is_empty() {
+            let metas: Vec<AccountMeta> = ctx
+                .remaining_accounts
+                .iter()
+                .map(|ai| {
+                    let mut is_signer = ai.is_signer;
+                    if ai.key == ctx.accounts.burn_mint_auth.key {
+                        is_signer = true;
+                    }
+                    AccountMeta {
+                        pubkey: *ai.key,
+                        is_signer,
+                        is_writable: ai.is_writable,
+                    }
+                })
+                .collect();
+            let ix = Instruction {
+                program_id: raydium_program,
+                accounts: metas,
+                data: raydium_ix_data,
+            };
+            let signer_seeds: &[&[u8]] = &[AUTH_SEED, &[ctx.accounts.auth.burn_mint_auth_bump]];
+            invoke_signed(&ix, ctx.remaining_accounts, &[signer_seeds])?;
         }
 
         // Record canonical pool and flip mode
@@ -915,9 +1040,6 @@ pub struct BuyOnCurve<'info> {
     pub sol_treasury: UncheckedAccount<'info>,
 
     /// CHECK: signer PDA for mint authority
-    /// CHECK: signer PDA for mint authority
-    /// CHECK: signer PDA for mint authority
-    /// CHECK: signer PDA for mint authority
     #[account(seeds=[AUTH_SEED], bump=auth.burn_mint_auth_bump)]
     pub burn_mint_auth: UncheckedAccount<'info>,
     #[account(seeds=[AUTH_SEED], bump=auth.bump)]
@@ -967,7 +1089,9 @@ pub struct FreezeCurve<'info> {
 }
 
 #[derive(Accounts)]
+#[instruction(raydium_program: Pubkey, pool_state: Pubkey, raydium_vault_a: Pubkey, raydium_vault_b: Pubkey, sol_seed_lamports: u64, token_seed_amount: u64)]
 pub struct SeedRaydiumPool<'info> {
+    #[account(mut)]
     pub authority: Signer<'info>,
     #[account(seeds=[GLOBAL_SEED], bump=global.bump)]
     pub global: Account<'info, Global>,
@@ -976,16 +1100,16 @@ pub struct SeedRaydiumPool<'info> {
     pub country: Account<'info, Country>,
 
     #[account(mut)]
+    pub mint: InterfaceAccount<'info, Mint>,
+
+    #[account(mut)]
     pub token_vault: InterfaceAccount<'info, TokenAccount>,
     /// CHECK: SOL treasury PDA (source of SOL)
     #[account(mut, seeds=[TREASURY_SEED, &country.id.to_le_bytes()], bump)]
     pub sol_treasury: UncheckedAccount<'info>,
-    /// CHECK: Seeding wallet (EOA or program) that will wrap SOL and call Raydium
-    #[account(mut)]
-    pub seeding_wallet: UncheckedAccount<'info>,
-    // SPL token account owned by seeding_wallet for country token
-    #[account(mut)]
-    pub seeding_token_account: InterfaceAccount<'info, TokenAccount>,
+    // PDA-owned token account (ATA of burn_mint_auth) to hold liquidity tokens
+    #[account(init_if_needed, payer=authority, associated_token::mint=mint, associated_token::authority=burn_mint_auth, associated_token::token_program=token_program)]
+    pub liquidity_token_account: InterfaceAccount<'info, TokenAccount>,
 
     /// CHECK: signer PDA for mint authority
     #[account(seeds=[AUTH_SEED], bump=auth.burn_mint_auth_bump)]
@@ -994,6 +1118,8 @@ pub struct SeedRaydiumPool<'info> {
     pub auth: Account<'info, Authorities>,
 
     pub token_program: Program<'info, Token2022>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
+    pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]

@@ -36,6 +36,7 @@ pub const GLOBAL_TAX_BP: u64 = 50; // 0.50% to global prize pot
 pub const CURVE_FEE_BP_DEFAULT: u64 = 100; // 1.00% protocol fee (kept in treasury)
 pub const NUKE_RUG_BP: u64 = 5_000; // 50% of target SOL treasury is rugged
 pub const TOKEN_DECIMALS: u8 = 9; // All country mints use 9 decimals
+pub const MIGRATE_THRESHOLD_USD_E6_DEFAULT: u64 = 150_000_000; // $150k in 1e6 precision
 
 const GLOBAL_SEED: &[u8] = b"GLOBAL";
 const COUNTRY_SEED: &[u8] = b"COUNTRY"; // + id.le_bytes()
@@ -241,6 +242,8 @@ pub struct MigratedToAmm {
 pub mod world_pvp {
     use super::*;
 
+    // removed: helper functions were causing fallback conflicts
+
     // ===== Bootstrap =====
     pub fn init_global(ctx: Context<InitGlobal>, round_ends_at_unix: i64) -> Result<()> {
         let g = &mut ctx.accounts.global;
@@ -283,8 +286,6 @@ pub mod world_pvp {
         id: u16,
         virtual_sol: u128,
         virtual_token: u128,
-        curve_fee_bp: u64,
-        migrate_threshold_usd_e6: u64,
     ) -> Result<()> {
         require!(id >= 1 && id <= MAX_COUNTRIES, WpError::InvalidAmount);
         let g = &mut ctx.accounts.global;
@@ -303,11 +304,7 @@ pub mod world_pvp {
         c.virtual_token = virtual_token;
         c.supply_minted = 0;
         c.supply_burned = 0;
-        c.curve_fee_bp = if curve_fee_bp == 0 {
-            CURVE_FEE_BP_DEFAULT
-        } else {
-            curve_fee_bp
-        };
+        c.curve_fee_bp = CURVE_FEE_BP_DEFAULT;
 
         // Default step-curve config (can be tuned off-chain via an admin ix if desired)
         c.step_tokens = 1_000_000; // 1M tokens per step
@@ -319,7 +316,7 @@ pub mod world_pvp {
         c.president = Pubkey::default();
         c.top_holder_cached = 0;
 
-        c.migrate_threshold_usd_e6 = migrate_threshold_usd_e6;
+        c.migrate_threshold_usd_e6 = MIGRATE_THRESHOLD_USD_E6_DEFAULT;
         c.raydium_pool_state = Pubkey::default();
         c.raydium_vault_a = Pubkey::default();
         c.raydium_vault_b = Pubkey::default();
@@ -586,8 +583,6 @@ pub mod world_pvp {
         pool_state: Pubkey,
         raydium_vault_a: Pubkey,
         raydium_vault_b: Pubkey,
-        sol_seed_lamports: u64,
-        token_seed_amount: u64,
         raydium_ix_data: Vec<u8>,
     ) -> Result<()> {
         require!(
@@ -598,21 +593,23 @@ pub mod world_pvp {
         require!(matches!(c.mode, MarketMode::Curve), WpError::WrongMode);
         require!(c.curve_frozen, WpError::CurveNotFrozen);
 
-        // Move SOL from treasury to the program PDA (burn_mint_auth)
-        if sol_seed_lamports > 0 {
+        // Move all SOL from treasury to the program PDA (burn_mint_auth)
+        let available_sol = ctx.accounts.sol_treasury.lamports();
+        if available_sol > 0 {
             **ctx
                 .accounts
                 .sol_treasury
                 .to_account_info()
-                .try_borrow_mut_lamports()? -= sol_seed_lamports;
+                .try_borrow_mut_lamports()? -= available_sol;
             **ctx
                 .accounts
                 .burn_mint_auth
                 .to_account_info()
-                .try_borrow_mut_lamports()? += sol_seed_lamports;
+                .try_borrow_mut_lamports()? += available_sol;
         }
 
-        // Move tokens from program vault (owned by AUTH PDA) to the PDA-owned liquidity token account
+        // Move all tokens from program vault (owned by AUTH PDA) to the PDA-owned liquidity token account
+        let token_seed_amount = accessor::amount(&ctx.accounts.token_vault.to_account_info())?;
         if token_seed_amount > 0 {
             let seeds: &[&[u8]] = &[AUTH_SEED, &[ctx.accounts.auth.burn_mint_auth_bump]];
             token::transfer_checked(
@@ -748,6 +745,7 @@ pub mod world_pvp {
         ctx: Context<LaunchNuke>,
         target_country_id: u16,
         random_country_id: u16,
+        _raydium_ix_data: Option<Vec<u8>>,
     ) -> Result<()> {
         let g = &mut ctx.accounts.global;
         require!(!g.paused, WpError::Paused);
@@ -777,16 +775,77 @@ pub mod world_pvp {
         let to_random = sol_rug - buyback;
 
         // 50% buy&burn winner
-        let burned = internal_buy_and_burn(
-            &ctx.accounts.token_program,
-            &ctx.accounts.winner_mint,
-            &ctx.accounts.winner_token_vault,
-            &ctx.accounts.winner_sol_treasury,
-            &ctx.accounts.burn_mint_auth,
-            &ctx.accounts.auth,
-            &mut ctx.accounts.winner_country,
-            buyback,
-        )?;
+        let mut burned: u64 = 0;
+        if matches!(ctx.accounts.winner_country.mode, MarketMode::Amm) {
+            if let Some(data) = _raydium_ix_data {
+                // Validate pool accounts presence in remaining
+                require!(
+                    accounts_contains(
+                        ctx.remaining_accounts,
+                        &ctx.accounts.winner_country.raydium_pool_state
+                    ),
+                    WpError::Unauthorized
+                );
+                require!(
+                    accounts_contains(
+                        ctx.remaining_accounts,
+                        &ctx.accounts.winner_country.raydium_vault_a
+                    ),
+                    WpError::Unauthorized
+                );
+                require!(
+                    accounts_contains(
+                        ctx.remaining_accounts,
+                        &ctx.accounts.winner_country.raydium_vault_b
+                    ),
+                    WpError::Unauthorized
+                );
+
+                let before = accessor::amount(&ctx.accounts.winner_token_vault.to_account_info())?;
+                let signer_seeds: &[&[u8]] = &[AUTH_SEED, &[ctx.accounts.auth.burn_mint_auth_bump]];
+                cpi_raydium_swap(
+                    ctx.accounts.winner_country.raydium_program,
+                    ctx.remaining_accounts,
+                    signer_seeds,
+                    data,
+                )?;
+                let after = accessor::amount(&ctx.accounts.winner_token_vault.to_account_info())?;
+                let delta = after.saturating_sub(before);
+                if delta > 0 {
+                    // Burn acquired tokens from vault
+                    token::burn(
+                        CpiContext::new_with_signer(
+                            ctx.accounts.token_program.to_account_info(),
+                            token::Burn {
+                                mint: ctx.accounts.winner_mint.to_account_info(),
+                                from: ctx.accounts.winner_token_vault.to_account_info(),
+                                authority: ctx.accounts.burn_mint_auth.to_account_info(),
+                            },
+                            &[signer_seeds],
+                        ),
+                        delta,
+                    )?;
+                    ctx.accounts.winner_country.supply_burned = ctx
+                        .accounts
+                        .winner_country
+                        .supply_burned
+                        .saturating_add(delta);
+                    burned = delta;
+                }
+            }
+        }
+        if burned == 0 {
+            burned = internal_buy_and_burn(
+                &ctx.accounts.token_program,
+                &ctx.accounts.winner_mint,
+                &ctx.accounts.winner_token_vault,
+                &ctx.accounts.winner_sol_treasury,
+                &ctx.accounts.burn_mint_auth,
+                &ctx.accounts.auth,
+                &mut ctx.accounts.winner_country,
+                buyback,
+            )?;
+        }
         // donate the rest
         **ctx
             .accounts
@@ -808,7 +867,10 @@ pub mod world_pvp {
         Ok(())
     }
 
-    pub fn execute_second_prize(ctx: Context<ExecuteSecondPrize>) -> Result<()> {
+    pub fn execute_second_prize(
+        ctx: Context<ExecuteSecondPrize>,
+        _raydium_ix_data: Option<Vec<u8>>,
+    ) -> Result<()> {
         let g = &mut ctx.accounts.global;
         require!(!g.paused, WpError::Paused);
         let pot = g.prize_pot_lamports;
@@ -826,16 +888,75 @@ pub mod world_pvp {
             .try_borrow_mut_lamports()? += pot;
         g.prize_pot_lamports = 0;
 
-        let burned = internal_buy_and_burn(
-            &ctx.accounts.token_program,
-            &ctx.accounts.winner_mint,
-            &ctx.accounts.winner_token_vault,
-            &ctx.accounts.winner_sol_treasury,
-            &ctx.accounts.burn_mint_auth,
-            &ctx.accounts.auth,
-            &mut ctx.accounts.winner_country,
-            pot,
-        )?;
+        let mut burned: u64 = 0;
+        if matches!(ctx.accounts.winner_country.mode, MarketMode::Amm) {
+            if let Some(data) = _raydium_ix_data {
+                require!(
+                    accounts_contains(
+                        ctx.remaining_accounts,
+                        &ctx.accounts.winner_country.raydium_pool_state
+                    ),
+                    WpError::Unauthorized
+                );
+                require!(
+                    accounts_contains(
+                        ctx.remaining_accounts,
+                        &ctx.accounts.winner_country.raydium_vault_a
+                    ),
+                    WpError::Unauthorized
+                );
+                require!(
+                    accounts_contains(
+                        ctx.remaining_accounts,
+                        &ctx.accounts.winner_country.raydium_vault_b
+                    ),
+                    WpError::Unauthorized
+                );
+
+                let before = accessor::amount(&ctx.accounts.winner_token_vault.to_account_info())?;
+                let signer_seeds: &[&[u8]] = &[AUTH_SEED, &[ctx.accounts.auth.burn_mint_auth_bump]];
+                cpi_raydium_swap(
+                    ctx.accounts.winner_country.raydium_program,
+                    ctx.remaining_accounts,
+                    signer_seeds,
+                    data,
+                )?;
+                let after = accessor::amount(&ctx.accounts.winner_token_vault.to_account_info())?;
+                let delta = after.saturating_sub(before);
+                if delta > 0 {
+                    token::burn(
+                        CpiContext::new_with_signer(
+                            ctx.accounts.token_program.to_account_info(),
+                            token::Burn {
+                                mint: ctx.accounts.winner_mint.to_account_info(),
+                                from: ctx.accounts.winner_token_vault.to_account_info(),
+                                authority: ctx.accounts.burn_mint_auth.to_account_info(),
+                            },
+                            &[signer_seeds],
+                        ),
+                        delta,
+                    )?;
+                    ctx.accounts.winner_country.supply_burned = ctx
+                        .accounts
+                        .winner_country
+                        .supply_burned
+                        .saturating_add(delta);
+                    burned = delta;
+                }
+            }
+        }
+        if burned == 0 {
+            burned = internal_buy_and_burn(
+                &ctx.accounts.token_program,
+                &ctx.accounts.winner_mint,
+                &ctx.accounts.winner_token_vault,
+                &ctx.accounts.winner_sol_treasury,
+                &ctx.accounts.burn_mint_auth,
+                &ctx.accounts.auth,
+                &mut ctx.accounts.winner_country,
+                pot,
+            )?;
+        }
         emit!(SecondPrizeExecuted {
             round_index: g.round_index,
             winner_country_id: ctx.accounts.winner_country.id,
@@ -846,44 +967,34 @@ pub mod world_pvp {
     }
 }
 
-// -----------------------------
-// Math helpers
-// -----------------------------
-
-fn curve_tokens_out(c: &Country, rs_lamports: u128, rt_tokens: u128, ds: u128) -> (u128, u64) {
-    let rs = c.virtual_sol.saturating_add(rs_lamports);
-    let rt = c.virtual_token.saturating_add(rt_tokens);
-    // ΔT = RT * (ΔS / (RS + ΔS))
-    let numerator = rt.saturating_mul(ds);
-    let denom = rs.saturating_add(ds).max(1);
-    let gross = numerator / denom;
-    // apply curve fee
-    let curve_fee_bp = c.curve_fee_bp.min(BASIS_POINTS);
-    let net = gross.saturating_mul((BASIS_POINTS - curve_fee_bp) as u128) / (BASIS_POINTS as u128);
-    let price_bp = price_in_bp(rs, rt);
-    (net, price_bp)
+// Helpers outside program module to avoid fallback conflicts
+fn accounts_contains(accs: &[AccountInfo], key: &Pubkey) -> bool {
+    accs.iter().any(|ai| ai.key == key)
 }
 
-fn curve_sol_out(c: &Country, rs_lamports: u128, rt_tokens: u128, dt: u128) -> (u128, u64) {
-    let rs = c.virtual_sol.saturating_add(rs_lamports);
-    let rt = c.virtual_token.saturating_add(rt_tokens);
-    // ΔS = RS * (ΔT / (RT + ΔT))
-    let numerator = rs.saturating_mul(dt);
-    let denom = rt.saturating_add(dt).max(1);
-    let gross = numerator / denom;
-    let curve_fee_bp = c.curve_fee_bp.min(BASIS_POINTS);
-    let net = gross.saturating_mul((BASIS_POINTS - curve_fee_bp) as u128) / (BASIS_POINTS as u128);
-    let price_bp = price_in_bp(rs, rt);
-    (net, price_bp)
+fn cpi_raydium_swap(
+    raydium_program: Pubkey,
+    remaining: &[AccountInfo],
+    signer_seeds: &[&[u8]],
+    data: Vec<u8>,
+) -> Result<()> {
+    let metas: Vec<AccountMeta> = remaining
+        .iter()
+        .map(|ai| AccountMeta {
+            pubkey: *ai.key,
+            is_signer: ai.is_signer,
+            is_writable: ai.is_writable,
+        })
+        .collect();
+    let ix = Instruction {
+        program_id: raydium_program,
+        accounts: metas,
+        data,
+    };
+    invoke_signed(&ix, remaining, &[signer_seeds]).map_err(|e| e.into())
 }
 
-fn price_in_bp(rs: u128, rt: u128) -> u64 {
-    if rt == 0 {
-        return 0;
-    }
-    let p = rs.saturating_mul(BASIS_POINTS as u128) / rt;
-    p.min(u64::MAX as u128) as u64
-}
+// Step-pricing model obsoletes the continuous curve helpers.
 
 fn internal_buy_and_burn<'info>(
     token_program: &Program<'info, Token2022>,
@@ -899,34 +1010,49 @@ fn internal_buy_and_burn<'info>(
         return Ok(0);
     }
 
-    // Simulate a buy (no fee/tax) and burn directly from vault.
-    let rs = country
-        .virtual_sol
-        .saturating_add(sol_treasury.lamports() as u128);
-    let rt = country
-        .virtual_token
-        .saturating_add(accessor::amount(&token_vault.to_account_info())? as u128);
-    let ds = sol_in as u128;
-    let numerator = rt.saturating_mul(ds);
-    let denom = rs.saturating_add(ds).max(1);
-    let tokens_out = (numerator / denom).min(u64::MAX as u128) as u64;
-    if tokens_out == 0 {
+    // Credit SOL budget into the treasury (funds came from rug/second prize).
+    **sol_treasury.to_account_info().try_borrow_mut_lamports()? =
+        sol_treasury.lamports().saturating_add(sol_in);
+
+    // Determine tokens to buy and burn using current step pricing.
+    let mut budget = sol_in;
+    let mut tokens_to_burn: u64 = 0;
+    let mut vault_amount = accessor::amount(&token_vault.to_account_info())?;
+    while budget > 0 && vault_amount > 0 {
+        let step_size = country.step_tokens;
+        let step_sold = country.sold_in_current_step;
+        let remaining_in_step = step_size.saturating_sub(step_sold);
+        if remaining_in_step == 0 {
+            country.current_step_index = country.current_step_index.saturating_add(1);
+            country.sold_in_current_step = 0;
+            continue;
+        }
+        let price_per_token = country.step_base_price_lamports.saturating_add(
+            country
+                .current_step_index
+                .saturating_mul(country.step_price_increment_lamports),
+        );
+        if price_per_token == 0 {
+            break;
+        }
+        let by_budget = budget / price_per_token;
+        let can_buy_now = by_budget.min(remaining_in_step).min(vault_amount);
+        if can_buy_now == 0 {
+            break;
+        }
+        let cost = can_buy_now.saturating_mul(price_per_token);
+        budget = budget.saturating_sub(cost);
+        tokens_to_burn = tokens_to_burn.saturating_add(can_buy_now);
+        country.sold_in_current_step = country.sold_in_current_step.saturating_add(can_buy_now);
+        vault_amount = vault_amount.saturating_sub(can_buy_now);
+    }
+
+    if tokens_to_burn == 0 {
         return Ok(0);
     }
 
+    // Burn directly from the reserve vault (program authority signs).
     let seeds: &[&[u8]] = &[AUTH_SEED, &[auth.burn_mint_auth_bump]];
-    token::mint_to(
-        CpiContext::new_with_signer(
-            token_program.to_account_info(),
-            token::MintTo {
-                mint: mint.to_account_info(),
-                to: token_vault.to_account_info(),
-                authority: burn_mint_auth.clone(),
-            },
-            &[seeds],
-        ),
-        tokens_out,
-    )?;
     token::burn(
         CpiContext::new_with_signer(
             token_program.to_account_info(),
@@ -937,10 +1063,10 @@ fn internal_buy_and_burn<'info>(
             },
             &[seeds],
         ),
-        tokens_out,
+        tokens_to_burn,
     )?;
-    country.supply_burned = country.supply_burned.saturating_add(tokens_out);
-    Ok(tokens_out)
+    country.supply_burned = country.supply_burned.saturating_add(tokens_to_burn);
+    Ok(tokens_to_burn)
 }
 
 // -----------------------------
@@ -982,7 +1108,7 @@ pub struct SetCountryPause<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(id: u16, virtual_sol: u128, virtual_token: u128, curve_fee_bp: u64, migrate_threshold_usd_e6: u64)]
+#[instruction(id: u16, virtual_sol: u128, virtual_token: u128)]
 pub struct InitCountry<'info> {
     #[account(mut, has_one=authority)]
     pub global: Account<'info, Global>,

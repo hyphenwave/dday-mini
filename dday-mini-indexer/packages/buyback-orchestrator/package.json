@@ -1,0 +1,25 @@
+{
+  "name": "@world-pvp/buyback-orchestrator",
+  "version": "1.0.0",
+  "description": "Buyback orchestrator service for World PvP",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "start": "node dist/index.js",
+    "test": "jest",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {
+    "@world-pvp/shared": "^1.0.0",
+    "@solana/web3.js": "^1.95.2",
+    "@coral-xyz/anchor": "^0.30.1",
+    "bullmq": "^5.1.0",
+    "ioredis": "^5.3.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.4.3"
+  }
+}

@@ -42,6 +42,7 @@ const GLOBAL_SEED: &[u8] = b"GLOBAL";
 const COUNTRY_SEED: &[u8] = b"COUNTRY"; // + id.le_bytes()
 const TREASURY_SEED: &[u8] = b"TREASURY"; // + id.le_bytes()
 const AUTH_SEED: &[u8] = b"AUTH"; // mint/burn authority PDA (stores bumps)
+const PROTOCOL_TREASURY_SEED: &[u8] = b"PROTO_TREASURY";
 
 // -----------------------------
 // Types & Accounts
@@ -295,6 +296,28 @@ pub mod world_pvp {
         Ok(())
     }
 
+    // ===== Protocol Treasury =====
+    pub fn withdraw_protocol_fees(ctx: Context<WithdrawProtocolFees>, lamports: u64) -> Result<()> {
+        require!(
+            ctx.accounts.authority.key() == ctx.accounts.global.authority,
+            WpError::Unauthorized
+        );
+        let available = ctx.accounts.protocol_treasury.lamports();
+        let amount = lamports.min(available);
+        require!(amount > 0, WpError::InvalidAmount);
+        **ctx
+            .accounts
+            .protocol_treasury
+            .to_account_info()
+            .try_borrow_mut_lamports()? -= amount;
+        **ctx
+            .accounts
+            .recipient
+            .to_account_info()
+            .try_borrow_mut_lamports()? += amount;
+        Ok(())
+    }
+
     // ===== Country Setup =====
     pub fn init_country(
         ctx: Context<InitCountry>,
@@ -407,7 +430,19 @@ pub mod world_pvp {
 
         // step-curve pricing using fixed-supply transfers from reserve vault
         let mut tokens_remaining_to_sell = min_tokens_out; // minimum target in tokens
-        let mut sol_budget = (sol_in - global_tax) as u64;
+                                                           // protocol fee (to protocol treasury)
+        let protocol_fee = (((sol_in - global_tax) as u128)
+            * (ctx.accounts.country.curve_fee_bp as u128)
+            / (BASIS_POINTS as u128)) as u64;
+        let mut sol_budget = (sol_in - global_tax).saturating_sub(protocol_fee) as u64;
+        if protocol_fee > 0 {
+            **treasury.to_account_info().try_borrow_mut_lamports()? -= protocol_fee;
+            **ctx
+                .accounts
+                .protocol_treasury
+                .to_account_info()
+                .try_borrow_mut_lamports()? += protocol_fee;
+        }
         let mut tokens_to_send: u64 = 0;
 
         // compute available in vault
@@ -571,10 +606,14 @@ pub mod world_pvp {
             WpError::Slippage
         );
 
-        // global tax on sell
+        // protocol fee (kept in treasury) and global tax
+        let protocol_fee = (sol_out_u64 as u128 * (ctx.accounts.country.curve_fee_bp as u128)
+            / (BASIS_POINTS as u128)) as u64;
         let global_tax =
             (sol_out_u64 as u128 * (GLOBAL_TAX_BP as u128) / (BASIS_POINTS as u128)) as u64;
-        let seller_amount = sol_out_u64.saturating_sub(global_tax);
+        let seller_amount = sol_out_u64
+            .saturating_sub(protocol_fee)
+            .saturating_sub(global_tax);
 
         if global_tax > 0 {
             **ctx
@@ -592,6 +631,19 @@ pub mod world_pvp {
                 .global
                 .prize_pot_lamports
                 .saturating_add(global_tax);
+        }
+
+        if protocol_fee > 0 {
+            **ctx
+                .accounts
+                .sol_treasury
+                .to_account_info()
+                .try_borrow_mut_lamports()? -= protocol_fee;
+            **ctx
+                .accounts
+                .protocol_treasury
+                .to_account_info()
+                .try_borrow_mut_lamports()? += protocol_fee;
         }
 
         **ctx
@@ -1187,6 +1239,10 @@ pub struct InitGlobal<'info> {
     #[account(init, payer=authority, space=8 + 200, seeds=[GLOBAL_SEED], bump)]
     pub global: Account<'info, Global>,
 
+    /// CHECK: global protocol treasury PDA (lamports holder)
+    #[account(init, payer=authority, space=0, seeds=[PROTOCOL_TREASURY_SEED], bump)]
+    pub protocol_treasury: UncheckedAccount<'info>,
+
     // Authority PDA (stores bumps, acts as mint auth signer)
     #[account(init, payer=authority, space=8 + 8, seeds=[AUTH_SEED], bump)]
     pub auth: Account<'info, Authorities>,
@@ -1212,6 +1268,20 @@ pub struct SetCountryPause<'info> {
     pub global: Account<'info, Global>,
     #[account(mut, seeds=[COUNTRY_SEED, &country.id.to_le_bytes()], bump=country.bump)]
     pub country: Account<'info, Country>,
+}
+
+#[derive(Accounts)]
+pub struct WithdrawProtocolFees<'info> {
+    pub authority: Signer<'info>,
+    #[account(seeds=[GLOBAL_SEED], bump=global.bump)]
+    pub global: Account<'info, Global>,
+    /// CHECK: protocol treasury PDA
+    #[account(mut, seeds=[PROTOCOL_TREASURY_SEED], bump)]
+    pub protocol_treasury: UncheckedAccount<'info>,
+    /// CHECK: recipient of withdrawn lamports (EOA or PDA)
+    #[account(mut)]
+    pub recipient: UncheckedAccount<'info>,
+    pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
@@ -1272,6 +1342,10 @@ pub struct BuyOnCurve<'info> {
     #[account(mut, seeds=[TREASURY_SEED, &country.id.to_le_bytes()], bump)]
     pub sol_treasury: UncheckedAccount<'info>,
 
+    /// CHECK: protocol treasury PDA
+    #[account(mut, seeds=[PROTOCOL_TREASURY_SEED], bump)]
+    pub protocol_treasury: UncheckedAccount<'info>,
+
     /// CHECK: signer PDA for mint authority
     #[account(seeds=[AUTH_SEED], bump=auth.burn_mint_auth_bump)]
     pub burn_mint_auth: UncheckedAccount<'info>,
@@ -1307,6 +1381,10 @@ pub struct SellOnCurve<'info> {
     /// CHECK
     #[account(mut, seeds=[TREASURY_SEED, &country.id.to_le_bytes()], bump)]
     pub sol_treasury: UncheckedAccount<'info>,
+
+    /// CHECK: protocol treasury PDA
+    #[account(mut, seeds=[PROTOCOL_TREASURY_SEED], bump)]
+    pub protocol_treasury: UncheckedAccount<'info>,
 
     pub token_program: Program<'info, Token2022>,
     pub system_program: Program<'info, System>,

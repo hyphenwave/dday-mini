@@ -1,10 +1,10 @@
-# World PvP - Solana Implementation
+# Doomsday - Solana Implementation
 
 A decentralized multiplayer game where 211 countries compete for the highest market cap on Solana blockchain. The winning country unlocks a nuclear missile to eliminate another country from the game.
 
 ## 🌍 Game Overview
 
-World PvP is a competitive token-based game where:
+Doomsday is a competitive token-based game where:
 - **211 countries** compete for market cap dominance
 - **30-day rounds** determine the winner
 - **Nuclear missiles** eliminate countries permanently

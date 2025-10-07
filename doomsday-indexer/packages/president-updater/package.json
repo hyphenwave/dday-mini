@@ -1,7 +1,7 @@
 {
-  "name": "@world-pvp/president-updater",
+  "name": "@doomsday/president-updater",
   "version": "1.0.0",
-  "description": "President updater service for World PvP",
+  "description": "President updater service for Doomsday",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
@@ -11,7 +11,7 @@
     "clean": "rimraf dist"
   },
   "dependencies": {
-    "@world-pvp/shared": "^1.0.0",
+    "@doomsday/shared": "workspace:*",
     "@solana/web3.js": "^1.95.2",
     "@solana/spl-token": "^0.4.8",
     "@coral-xyz/anchor": "^0.30.1",

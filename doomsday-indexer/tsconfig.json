@@ -7,6 +7,10 @@
     "declarationMap": true,
     "sourceMap": true,
     "composite": true,
+    "baseUrl": ".",
+    "paths": {
+      "@doomsday/shared": ["packages/shared/src"]
+    },
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,

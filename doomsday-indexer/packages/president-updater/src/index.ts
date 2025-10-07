@@ -1,15 +1,16 @@
-import { createLogger, config, validateConfig } from '@world-pvp/shared';
-import { Queue, Worker } from 'bullmq';
-import Redis from 'ioredis';
+import { createLogger, config, validateConfig } from '@doomsday/shared'
+import { Queue, Worker, Job } from 'bullmq'
+import { PresidentUpdateJob } from '@doomsday/shared'
+import Redis from 'ioredis'
 
-const logger = createLogger('president-updater');
+const logger = createLogger('president-updater')
 
 // Redis connection
 const redis = new Redis({
   host: config.redis.host,
   port: config.redis.port,
   password: config.redis.password,
-});
+})
 
 // BullMQ queue for president update jobs
 const presidentQueue = new Queue('president-updates', {
@@ -18,41 +19,41 @@ const presidentQueue = new Queue('president-updates', {
     removeOnComplete: 100,
     removeOnFail: 50,
   },
-});
+})
 
 // Main service class
 class PresidentUpdaterService {
-  private worker: Worker | null = null;
+  private worker: Worker | null = null
 
   async start() {
     try {
       // Validate configuration
-      validateConfig();
+      validateConfig()
 
-      logger.logServiceStarted();
+      logger.logServiceStarted()
 
       // Initialize worker
-      this.setupWorker();
+      this.setupWorker()
 
       // Schedule recurring jobs
-      await this.scheduleRecurringJobs();
+      await this.scheduleRecurringJobs()
 
       // Handle graceful shutdown
-      this.setupShutdownHandlers();
+      this.setupShutdownHandlers()
 
-      logger.info('President updater service started successfully');
+      logger.info('President updater service started successfully')
     } catch (error) {
-      logger.error('Failed to start president updater service', error);
-      process.exit(1);
+      logger.error('Failed to start president updater service', error)
+      process.exit(1)
     }
   }
 
   private setupWorker() {
-    this.worker = new Worker(
+    this.worker = new Worker<PresidentUpdateJob>(
       'president-updates',
-      async (job) => {
-        const { countryId } = job.data;
-        logger.info(`Processing president update for country ${countryId}`);
+      async (job: Job<PresidentUpdateJob>) => {
+        const { countryId } = job.data
+        logger.info(`Processing president update for country ${countryId}`)
 
         try {
           // TODO: Implement actual president update logic
@@ -61,25 +62,28 @@ class PresidentUpdaterService {
           // 3. Find highest balance holder
           // 4. Update president on-chain
 
-          logger.info(`Successfully updated president for country ${countryId}`);
+          logger.info(`Successfully updated president for country ${countryId}`)
         } catch (error) {
-          logger.error(`Failed to update president for country ${countryId}`, error);
-          throw error;
+          logger.error(
+            `Failed to update president for country ${countryId}`,
+            error
+          )
+          throw error
         }
       },
       {
         connection: redis,
         concurrency: 5,
       }
-    );
+    )
 
-    this.worker.on('completed', (job) => {
-      logger.debug(`Job ${job.id} completed`);
-    });
+    this.worker.on('completed', (job: Job) => {
+      logger.debug(`Job ${job.id} completed`)
+    })
 
-    this.worker.on('failed', (job, err) => {
-      logger.error(`Job ${job?.id} failed`, err);
-    });
+    this.worker.on('failed', (job: Job | undefined, err: Error) => {
+      logger.error(`Job ${job?.id} failed`, err)
+    })
   }
 
   private async scheduleRecurringJobs() {
@@ -93,47 +97,47 @@ class PresidentUpdaterService {
             every: config.service.presidentUpdateIntervalMs,
           },
         }
-      );
+      )
     }
 
-    logger.info('Scheduled recurring president update jobs for all countries');
+    logger.info('Scheduled recurring president update jobs for all countries')
   }
 
   private setupShutdownHandlers() {
     const gracefulShutdown = async (signal: string) => {
-      logger.info(`Received ${signal}, starting graceful shutdown`);
+      logger.info(`Received ${signal}, starting graceful shutdown`)
 
       // Close worker
       if (this.worker) {
-        await this.worker.close();
+        await this.worker.close()
       }
 
       // Close queue
-      await presidentQueue.close();
+      await presidentQueue.close()
 
       // Close Redis connection
-      redis.disconnect();
+      redis.disconnect()
 
-      logger.logServiceStopped(signal);
-      process.exit(0);
-    };
+      logger.logServiceStopped(signal)
+      process.exit(0)
+    }
 
-    process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-    process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+    process.on('SIGTERM', () => gracefulShutdown('SIGTERM'))
+    process.on('SIGINT', () => gracefulShutdown('SIGINT'))
   }
 
   async stop() {
     if (this.worker) {
-      await this.worker.close();
+      await this.worker.close()
     }
-    await presidentQueue.close();
-    redis.disconnect();
+    await presidentQueue.close()
+    redis.disconnect()
   }
 }
 
 // Start the service
-const service = new PresidentUpdaterService();
+const service = new PresidentUpdaterService()
 service.start().catch((error) => {
-  logger.error('Service startup failed', error);
-  process.exit(1);
-});
+  logger.error('Service startup failed', error)
+  process.exit(1)
+})

@@ -1,13 +1,14 @@
 // Export all shared modules
-export * from './logger';
-export * from './rpc-manager';
-export * from './config';
-export * from './types';
-export * from './utils';
+export * from './logger'
+export * from './rpc-manager'
+export * from './config'
+export * from './types'
+export * from './utils'
+export * from './idl'
 
 // Export specific items from program-client (avoiding conflicts with types)
 export {
-  WORLD_PVP_PROGRAM_ID,
+  DOOMSDAY_PROGRAM_ID,
   MAX_COUNTRIES,
   BASIS_POINTS,
   GLOBAL_TAX_BP,
@@ -16,5 +17,5 @@ export {
   TOKEN_DECIMALS,
   MIGRATE_THRESHOLD_USD_E6_DEFAULT,
   SEEDS,
-  WorldPvPClient,
-} from './program-client';
+  DoomsdayClient,
+} from './program-client'

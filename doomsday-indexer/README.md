@@ -1,6 +1,6 @@
-# World PvP Indexer System
+# Doomsday Indexer System
 
-A comprehensive microservices-based indexer for the World PvP Solana game, handling off-chain operations, price tracking, round management, and API services.
+A comprehensive microservices-based indexer for the Doomsday Solana game, handling off-chain operations, price tracking, round management, auto-migration, and API services.
 
 ## Architecture
 
@@ -28,7 +28,7 @@ This indexer uses a microservices architecture with the following components:
 
 1. Clone the repository:
 ```bash
-cd dday-mini-indexer
+cd doomsday-indexer
 ```
 
 2. Install dependencies:
@@ -87,6 +87,33 @@ Edit `.env` file to configure:
 - API ports
 - Logging levels
 
+## Off-chain services and how to run them safely
+
+### President (top holder) updater
+
+- **What**: Periodically compute top holder per country; call `set_president_offchain(id, pubkey, amount)`.
+- **How**: Index SPL Token-2022 balances for each country mint; compute free-balance (exclude vaults/LP); sign with `Global.authority` (multisig). Runs on a BullMQ queue, interval configurable via `PRESIDENT_UPDATE_INTERVAL_MS`. Can be disabled via `ENABLE_PRESIDENT_UPDATES=false`.
+
+### Market cap/price updater
+
+- **What**: Maintain off-chain price and MC; call `set_country_quote_offchain(price_q64, mc_e6, source, ts)`.
+- **How**: For Curve mode use step price; for Amm use Raydium pool reserves; write Q64.64 price; sign with authority.
+
+### Round scheduler
+
+- **What**: At round end, compute winner (highest MC), call `end_round(winner_id, next_end_unix)`.
+- **How**: Use MC snapshot near cutoff; produce `next_end_unix`; sign with authority; store a durable audit log. Round duration policy: first 7 days, then decrease by 1 day per round until reaching 8 hours, then stay fixed at 8 hours.
+
+### Auto-migration to AMM
+
+- **What**: When MC ≥ threshold, call `freeze_curve` then `seed_raydium_pool` with Raydium pool metadata and CPI ix data.
+- **How**: Watch MC, ensure vault/treasury balances exist, build Raydium add-liquidity IX with PDA as signer, pass as remaining accounts; simulate before sending; sign with authority.
+
+### AMM buyback (swap path)
+
+- **What**: For nuke/second prize in Amm mode, assemble Raydium swap IX (WSOL→token) as remaining accounts, with slippage caps.
+- **How**: Wrap SOL in PDA if needed; verify `pool_state`, `vaultA`/`vaultB` match stored in the Country; simulate swap off-chain and enforce min_out; pass remaining accounts in correct Raydium order; use strict slippage bps; submit CPI; then burn tokens from PDA’s ATA.
+
 ## API Endpoints
 
 The API Gateway provides the following endpoints:
@@ -117,15 +144,15 @@ ws.on('message', (data) => {
 ## Project Structure
 
 ```
-dday-mini-indexer/
+doomsday-indexer/
 ├── packages/
 │   ├── shared/                 # Shared utilities and types
 │   ├── president-updater/      # President tracking service
 │   ├── price-updater/          # Price monitoring service
 │   ├── round-scheduler/        # Round management service
-│   ├── amm-migrator/          # AMM migration service
+│   ├── amm-migrator/           # AMM migration service
 │   ├── buyback-orchestrator/   # Buyback execution service
-│   └── api-gateway/           # API and WebSocket server
+│   └── api-gateway/            # API and WebSocket server
 ├── docker-compose.yml         # Docker orchestration
 ├── .env.example              # Environment configuration template
 └── package.json             # Root workspace configuration

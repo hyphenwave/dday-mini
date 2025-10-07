@@ -1,19 +1,21 @@
-import { AnchorProvider, Program, Idl, Wallet } from '@coral-xyz/anchor';
-import { Connection, Keypair, PublicKey } from '@solana/web3.js';
-import * as anchor from '@coral-xyz/anchor';
-import { logger } from './logger';
+import { AnchorProvider, Program, Idl, Wallet } from '@coral-xyz/anchor'
+import { Connection, Keypair, PublicKey } from '@solana/web3.js'
+import * as anchor from '@coral-xyz/anchor'
+import { logger } from './logger'
 
 // Program ID from the Anchor.toml
-export const WORLD_PVP_PROGRAM_ID = new PublicKey('CS5ZMcpfdSS7WTgTQp7xYeVN9af3UoAdrZyMgKr3s8Bt');
+export const DOOMSDAY_PROGRAM_ID = new PublicKey(
+  'CS5ZMcpfdSS7WTgTQp7xYeVN9af3UoAdrZyMgKr3s8Bt'
+)
 
 // Constants from the program
-export const MAX_COUNTRIES = 211;
-export const BASIS_POINTS = 10_000;
-export const GLOBAL_TAX_BP = 50;
-export const CURVE_FEE_BP_DEFAULT = 100;
-export const NUKE_RUG_BP = 10_000;
-export const TOKEN_DECIMALS = 9;
-export const MIGRATE_THRESHOLD_USD_E6_DEFAULT = 80_000_000;
+export const MAX_COUNTRIES = 211
+export const BASIS_POINTS = 10_000
+export const GLOBAL_TAX_BP = 50
+export const CURVE_FEE_BP_DEFAULT = 100
+export const NUKE_RUG_BP = 10_000
+export const TOKEN_DECIMALS = 9
+export const MIGRATE_THRESHOLD_USD_E6_DEFAULT = 80_000_000
 
 // Seeds for PDAs
 export const SEEDS = {
@@ -21,7 +23,7 @@ export const SEEDS = {
   COUNTRY: Buffer.from('COUNTRY'),
   TREASURY: Buffer.from('TREASURY'),
   AUTH: Buffer.from('AUTH'),
-};
+}
 
 export enum CountryStatus {
   Active = 'Active',
@@ -41,49 +43,49 @@ export enum QuoteSource {
 }
 
 export interface GlobalAccount {
-  authority: PublicKey;
-  roundIndex: number;
-  roundEndsAtUnix: anchor.BN;
-  winnerCountryId: number;
-  nukeConsumedForRound: boolean;
-  prizePotLamports: anchor.BN;
-  countriesLive: number;
-  paused: boolean;
-  bump: number;
+  authority: PublicKey
+  roundIndex: number
+  roundEndsAtUnix: anchor.BN
+  winnerCountryId: number
+  nukeConsumedForRound: boolean
+  prizePotLamports: anchor.BN
+  countriesLive: number
+  paused: boolean
+  bump: number
 }
 
 export interface CountryAccount {
-  id: number;
-  status: CountryStatus;
-  paused: boolean;
-  mode: MarketMode;
-  curveFrozen: boolean;
-  mint: PublicKey;
-  tokenVault: PublicKey;
-  solTreasury: PublicKey;
-  virtualSol: anchor.BN;
-  virtualToken: anchor.BN;
-  supplyMinted: anchor.BN;
-  supplyBurned: anchor.BN;
-  curveFeeBp: anchor.BN;
-  stepTokens: anchor.BN;
-  stepBasePriceLamports: anchor.BN;
-  stepPriceIncrementLamports: anchor.BN;
-  currentStepIndex: anchor.BN;
-  soldInCurrentStep: anchor.BN;
-  president: PublicKey;
-  topHolderCached: anchor.BN;
-  migrateThresholdUsdE6: anchor.BN;
-  raydiumPoolState: PublicKey;
-  raydiumVaultA: PublicKey;
-  raydiumVaultB: PublicKey;
-  raydiumProgram: PublicKey;
-  migratedAtTs: anchor.BN;
-  quotePriceQ64: anchor.BN;
-  quoteMarketcap: anchor.BN;
-  quoteSource: QuoteSource;
-  quoteObservedAt: anchor.BN;
-  bump: number;
+  id: number
+  status: CountryStatus
+  paused: boolean
+  mode: MarketMode
+  curveFrozen: boolean
+  mint: PublicKey
+  tokenVault: PublicKey
+  solTreasury: PublicKey
+  virtualSol: anchor.BN
+  virtualToken: anchor.BN
+  supplyMinted: anchor.BN
+  supplyBurned: anchor.BN
+  curveFeeBp: anchor.BN
+  stepTokens: anchor.BN
+  stepBasePriceLamports: anchor.BN
+  stepPriceIncrementLamports: anchor.BN
+  currentStepIndex: anchor.BN
+  soldInCurrentStep: anchor.BN
+  president: PublicKey
+  topHolderCached: anchor.BN
+  migrateThresholdUsdE6: anchor.BN
+  raydiumPoolState: PublicKey
+  raydiumVaultA: PublicKey
+  raydiumVaultB: PublicKey
+  raydiumProgram: PublicKey
+  migratedAtTs: anchor.BN
+  quotePriceQ64: anchor.BN
+  quoteMarketcap: anchor.BN
+  quoteSource: QuoteSource
+  quoteObservedAt: anchor.BN
+  bump: number
 }
 
 // Wallet adapter for Keypair
@@ -91,101 +93,89 @@ class KeypairWallet implements Wallet {
   constructor(readonly payer: Keypair) {}
 
   get publicKey(): PublicKey {
-    return this.payer.publicKey;
+    return this.payer.publicKey
   }
 
-  async signTransaction<T extends anchor.web3.Transaction | anchor.web3.VersionedTransaction>(
-    tx: T
-  ): Promise<T> {
+  async signTransaction<
+    T extends anchor.web3.Transaction | anchor.web3.VersionedTransaction,
+  >(tx: T): Promise<T> {
     if ('version' in tx) {
-      tx.sign([this.payer]);
+      tx.sign([this.payer])
     } else {
-      tx.sign(this.payer);
+      tx.sign(this.payer)
     }
-    return tx;
+    return tx
   }
 
-  async signAllTransactions<T extends anchor.web3.Transaction | anchor.web3.VersionedTransaction>(
-    txs: T[]
-  ): Promise<T[]> {
+  async signAllTransactions<
+    T extends anchor.web3.Transaction | anchor.web3.VersionedTransaction,
+  >(txs: T[]): Promise<T[]> {
     return txs.map((tx) => {
       if ('version' in tx) {
-        tx.sign([this.payer]);
+        tx.sign([this.payer])
       } else {
-        tx.sign(this.payer);
+        tx.sign(this.payer)
       }
-      return tx;
-    });
+      return tx
+    })
   }
 }
 
-export class WorldPvPClient {
-  private program: Program;
-  private provider: AnchorProvider;
+export class DoomsdayClient {
+  private program: Program
+  private provider: AnchorProvider
 
-  constructor(
-    connection: Connection,
-    wallet: Keypair,
-    idl: Idl
-  ) {
+  constructor(connection: Connection, wallet: Keypair, idl: Idl) {
     // Create wallet adapter
-    const walletAdapter = new KeypairWallet(wallet);
+    const walletAdapter = new KeypairWallet(wallet)
 
     // Create provider
-    this.provider = new AnchorProvider(
-      connection,
-      walletAdapter,
-      { commitment: 'confirmed' }
-    );
+    this.provider = new AnchorProvider(connection, walletAdapter, {
+      commitment: 'confirmed',
+    })
 
     // Initialize program
-    this.program = new Program(idl, this.provider);
+    this.program = new Program(idl, this.provider)
   }
 
   /**
    * Get the Global PDA
    */
   getGlobalPDA(): [PublicKey, number] {
-    return PublicKey.findProgramAddressSync(
-      [SEEDS.GLOBAL],
-      WORLD_PVP_PROGRAM_ID
-    );
+    return PublicKey.findProgramAddressSync([SEEDS.GLOBAL], DOOMSDAY_PROGRAM_ID)
   }
 
   /**
    * Get a Country PDA by ID
    */
   getCountryPDA(countryId: number): [PublicKey, number] {
-    const idBytes = Buffer.allocUnsafe(2);
-    idBytes.writeUInt16LE(countryId, 0);
+    const idBytes = Buffer.allocUnsafe(2)
+    idBytes.writeUInt16LE(countryId, 0)
 
     return PublicKey.findProgramAddressSync(
       [SEEDS.COUNTRY, idBytes],
-      WORLD_PVP_PROGRAM_ID
-    );
+      DOOMSDAY_PROGRAM_ID
+    )
   }
 
   /**
    * Get a Treasury PDA by country ID
    */
   getTreasuryPDA(countryId: number): [PublicKey, number] {
-    const idBytes = Buffer.allocUnsafe(2);
-    idBytes.writeUInt16LE(countryId, 0);
+    const idBytes = Buffer.allocUnsafe(2)
+    idBytes.writeUInt16LE(countryId, 0)
 
     return PublicKey.findProgramAddressSync(
       [SEEDS.TREASURY, idBytes],
-      WORLD_PVP_PROGRAM_ID
-    );
+      DOOMSDAY_PROGRAM_ID
+    )
   }
 
   /**
    * Get the Authority PDA
    */
   getAuthorityPDA(): [PublicKey, number] {
-    return PublicKey.findProgramAddressSync(
-      [SEEDS.AUTH],
-      WORLD_PVP_PROGRAM_ID
-    );
+    return PublicKey.findProgramAddressSync([SEEDS.AUTH], DOOMSDAY_PROGRAM_ID)
   }
 
   /**
@@ -193,12 +183,14 @@ export class WorldPvPClient {
    */
   async fetchGlobal(): Promise<GlobalAccount | null> {
     try {
-      const [globalPDA] = this.getGlobalPDA();
-      const account = await (this.program.account as any).global.fetch(globalPDA);
-      return account as GlobalAccount;
+      const [globalPDA] = this.getGlobalPDA()
+      const account = await (this.program.account as any).global.fetch(
+        globalPDA
+      )
+      return account as GlobalAccount
     } catch (error) {
-      logger.error('Failed to fetch global account:', error);
-      return null;
+      logger.error('Failed to fetch global account:', error)
+      return null
     }
   }
 
@@ -207,12 +199,14 @@ export class WorldPvPClient {
    */
   async fetchCountry(countryId: number): Promise<CountryAccount | null> {
     try {
-      const [countryPDA] = this.getCountryPDA(countryId);
-      const account = await (this.program.account as any).country.fetch(countryPDA);
-      return account as CountryAccount;
+      const [countryPDA] = this.getCountryPDA(countryId)
+      const account = await (this.program.account as any).country.fetch(
+        countryPDA
+      )
+      return account as CountryAccount
     } catch (error) {
-      logger.error(`Failed to fetch country ${countryId}:`, error);
-      return null;
+      logger.error(`Failed to fetch country ${countryId}:`, error)
+      return null
     }
   }
 
@@ -221,11 +215,11 @@ export class WorldPvPClient {
    */
   async fetchAllCountries(): Promise<CountryAccount[]> {
     try {
-      const accounts = await (this.program.account as any).country.all();
-      return accounts.map((acc: any) => acc.account as CountryAccount);
+      const accounts = await (this.program.account as any).country.all()
+      return accounts.map((acc: any) => acc.account as CountryAccount)
     } catch (error) {
-      logger.error('Failed to fetch all countries:', error);
-      return [];
+      logger.error('Failed to fetch all countries:', error)
+      return []
     }
   }
 
@@ -238,8 +232,8 @@ export class WorldPvPClient {
     topHolderAmount: anchor.BN
   ) {
     try {
-      const [countryPDA] = this.getCountryPDA(countryId);
-      const [globalPDA] = this.getGlobalPDA();
+      const [countryPDA] = this.getCountryPDA(countryId)
+      const [globalPDA] = this.getGlobalPDA()
 
       const tx = await this.program.methods
         .setPresidentOffchain(president, topHolderAmount)
@@ -248,13 +242,13 @@ export class WorldPvPClient {
           global: globalPDA,
           authority: this.provider.wallet.publicKey,
         })
-        .rpc();
+        .rpc()
 
-      logger.info(`President updated for country ${countryId}: ${tx}`);
-      return tx;
+      logger.info(`President updated for country ${countryId}: ${tx}`)
+      return tx
     } catch (error) {
-      logger.error(`Failed to set president for country ${countryId}:`, error);
-      throw error;
+      logger.error(`Failed to set president for country ${countryId}:`, error)
+      throw error
     }
   }
 
@@ -268,8 +262,8 @@ export class WorldPvPClient {
     source: QuoteSource
   ) {
     try {
-      const [countryPDA] = this.getCountryPDA(countryId);
-      const [globalPDA] = this.getGlobalPDA();
+      const [countryPDA] = this.getCountryPDA(countryId)
+      const [globalPDA] = this.getGlobalPDA()
 
       const tx = await this.program.methods
         .updateQuote(priceQ64, marketcap, source)
@@ -278,25 +272,22 @@ export class WorldPvPClient {
           global: globalPDA,
           authority: this.provider.wallet.publicKey,
         })
-        .rpc();
+        .rpc()
 
-      logger.info(`Quote updated for country ${countryId}: ${tx}`);
-      return tx;
+      logger.info(`Quote updated for country ${countryId}: ${tx}`)
+      return tx
     } catch (error) {
-      logger.error(`Failed to update quote for country ${countryId}:`, error);
-      throw error;
+      logger.error(`Failed to update quote for country ${countryId}:`, error)
+      throw error
     }
   }
 
   /**
    * End the current round
    */
-  async endRound(
-    winnerCountryId: number,
-    nextRoundEndsAt: anchor.BN
-  ) {
+  async endRound(winnerCountryId: number, nextRoundEndsAt: anchor.BN) {
     try {
-      const [globalPDA] = this.getGlobalPDA();
+      const [globalPDA] = this.getGlobalPDA()
 
       const tx = await this.program.methods
         .endRound(winnerCountryId, nextRoundEndsAt)
@@ -304,13 +295,13 @@ export class WorldPvPClient {
           global: globalPDA,
           authority: this.provider.wallet.publicKey,
         })
-        .rpc();
+        .rpc()
 
-      logger.info(`Round ended with winner ${winnerCountryId}: ${tx}`);
-      return tx;
+      logger.info(`Round ended with winner ${winnerCountryId}: ${tx}`)
+      return tx
     } catch (error) {
-      logger.error('Failed to end round:', error);
-      throw error;
+      logger.error('Failed to end round:', error)
+      throw error
     }
   }
 
@@ -319,8 +310,8 @@ export class WorldPvPClient {
    */
   async freezeCurve(countryId: number) {
     try {
-      const [countryPDA] = this.getCountryPDA(countryId);
-      const [globalPDA] = this.getGlobalPDA();
+      const [countryPDA] = this.getCountryPDA(countryId)
+      const [globalPDA] = this.getGlobalPDA()
 
       const tx = await this.program.methods
         .freezeCurve()
@@ -329,13 +320,13 @@ export class WorldPvPClient {
           global: globalPDA,
           authority: this.provider.wallet.publicKey,
         })
-        .rpc();
+        .rpc()
 
-      logger.info(`Curve frozen for country ${countryId}: ${tx}`);
-      return tx;
+      logger.info(`Curve frozen for country ${countryId}: ${tx}`)
+      return tx
     } catch (error) {
-      logger.error(`Failed to freeze curve for country ${countryId}:`, error);
-      throw error;
+      logger.error(`Failed to freeze curve for country ${countryId}:`, error)
+      throw error
     }
   }
 
@@ -343,33 +334,35 @@ export class WorldPvPClient {
    * Calculate current price on bonding curve
    */
   calculateCurvePrice(country: CountryAccount): number {
-    const stepPrice = country.stepBasePriceLamports
-      .add(country.currentStepIndex.mul(country.stepPriceIncrementLamports));
+    const stepPrice = country.stepBasePriceLamports.add(
+      country.currentStepIndex.mul(country.stepPriceIncrementLamports)
+    )
 
-    return stepPrice.toNumber() / Math.pow(10, 9); // Convert lamports to SOL
+    return stepPrice.toNumber() / Math.pow(10, 9) // Convert lamports to SOL
   }
 
   /**
    * Calculate market cap
    */
   calculateMarketCap(country: CountryAccount, priceInSol: number): number {
-    const circulatingSupply = country.supplyMinted.sub(country.supplyBurned);
-    const supplyInTokens = circulatingSupply.toNumber() / Math.pow(10, TOKEN_DECIMALS);
+    const circulatingSupply = country.supplyMinted.sub(country.supplyBurned)
+    const supplyInTokens =
+      circulatingSupply.toNumber() / Math.pow(10, TOKEN_DECIMALS)
 
-    return supplyInTokens * priceInSol;
+    return supplyInTokens * priceInSol
   }
 
   /**
    * Get program instance for direct access
    */
   getProgram(): Program {
-    return this.program;
+    return this.program
   }
 
   /**
    * Get provider for direct access
    */
   getProvider(): AnchorProvider {
-    return this.provider;
+    return this.provider
   }
 }

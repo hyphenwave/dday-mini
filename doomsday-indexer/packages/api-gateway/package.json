@@ -1,7 +1,7 @@
 {
-  "name": "@world-pvp/api-gateway",
+  "name": "@doomsday/api-gateway",
   "version": "1.0.0",
-  "description": "API Gateway and WebSocket server for World PvP",
+  "description": "API Gateway and WebSocket server for Doomsday",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
@@ -11,7 +11,7 @@
     "clean": "rimraf dist"
   },
   "dependencies": {
-    "@world-pvp/shared": "^1.0.0",
+    "@doomsday/shared": "workspace:*",
     "@solana/web3.js": "^1.95.2",
     "express": "^4.18.3",
     "cors": "^2.8.5",

@@ -1,7 +1,7 @@
 {
-  "name": "@world-pvp/shared",
+  "name": "@doomsday/shared",
   "version": "1.0.0",
-  "description": "Shared utilities and types for World PvP indexer",
+  "description": "Shared utilities and types for Doomsday indexer",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {

@@ -81,7 +81,7 @@ runTest('Shared library exports', () => {
     'config',
     'validateConfig',
     'RPCManager',
-    'WorldPvPClient',
+    'DoomsdayClient',
     'CountryStatus',
     'MarketMode',
     'QuoteSource',

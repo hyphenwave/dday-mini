@@ -21,6 +21,6 @@
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "src/utils/doomsday.idl.json", "src/countries.json"],
   "exclude": ["node_modules", "dist", "**/*.test.ts"]
 }

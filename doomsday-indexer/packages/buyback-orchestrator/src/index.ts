@@ -6,7 +6,7 @@ import {
   validateConfig,
   RPCManager,
   DoomsdayClient,
-  loadIdlFromEnv,
+  getDoomsdayIdl,
   MarketMode,
 } from '@doomsday/shared'
 
@@ -21,19 +21,15 @@ async function main() {
     ])
     const connection = await rpcManager.getConnection()
 
-    const idl: Idl | null = loadIdlFromEnv()
-    if (!idl) {
-      logger.warn('IDL not provided via IDL_PATH; running read-only')
-    }
+    const idl: Idl = getDoomsdayIdl()
 
     const wallet = Keypair.generate()
-    const client = idl ? new DoomsdayClient(connection, wallet, idl) : null
+    const client = new DoomsdayClient(connection, wallet, idl)
 
     logger.logServiceStarted()
 
     const interval = setInterval(async () => {
       try {
-        if (!client) return
         const countries = await client.fetchAllCountries()
         for (const c of countries) {
           if (c.mode !== MarketMode.Amm) continue

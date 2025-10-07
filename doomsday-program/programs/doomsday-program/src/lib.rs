@@ -47,7 +47,7 @@ pub use utils::*;
 // -----------------------------
 // Program
 // -----------------------------
-declare_id!("CS5ZMcpfdSS7WTgTQp7xYeVN9af3UoAdrZyMgKr3s8Bt");
+declare_id!("7KfFEX13WEqj8LjQm2p3causqkGRp27ejHinsHRNWrdK");
 #[program]
 pub mod doomsday {
     use super::*;

@@ -157,7 +157,7 @@ runTest('Shared Library Imports', () => {
     if (!shared.logger) throw new Error('logger not exported')
     if (!shared.config) throw new Error('config not exported')
     if (!shared.RPCManager) throw new Error('RPCManager not exported')
-    if (!shared.WorldPvPClient) throw new Error('WorldPvPClient not exported')
+    if (!shared.DoomsdayClient) throw new Error('DoomsdayClient not exported')
   } catch (error) {
     throw new Error(`Failed to import shared library: ${error.message}`)
   }

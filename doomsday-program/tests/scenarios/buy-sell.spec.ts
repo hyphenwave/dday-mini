@@ -123,7 +123,6 @@ describe('continuous linear curve — lean scenario', () => {
     // Initialize Global (round ends in ~1h)
     const now = Math.floor(Date.now() / 1000)
     const roundEnds = new BN(now + 3600)
-    console.log('Program loaded successfully')
 
     await program.methods
       .initGlobal(roundEnds)
@@ -131,13 +130,6 @@ describe('continuous linear curve — lean scenario', () => {
         authority: wallet.publicKey,
       })
       .rpc()
-
-    /*await program.methods
-      .initGlobal(roundEnds)
-      .accounts({
-        authority: wallet.publicKey,
-      })
-      .rpc() */
 
     // Create mint & init country
     const mintPk = await createMint2022(authPda, TOKEN_DECIMALS)
@@ -197,7 +189,6 @@ describe('continuous linear curve — lean scenario', () => {
       solAmount: number
     ) => {
       const payerPk = payer instanceof PublicKey ? payer : payer.publicKey
-      console.log('payerPk', payerPk)
       const before = await tokenBal(connection, payerAta)
       await program.methods
         .buyOnCurve(new BN(1), new BN(solAmount))
@@ -266,10 +257,14 @@ describe('continuous linear curve — lean scenario', () => {
     )
 
     // ---- Sells ----
-
     const profitB = await sellOnce(buyerB, buyerBata, buyB1)
     const profitA = await sellOnce(buyerA, buyerAata, buyA1)
+    const profitA2 = await sellOnce(buyerA, buyerAata, buyA2)
+    const profitA3 = await sellOnce(buyerA, buyerAata, buyA3)
+
     console.log('A realized Δ lamports:', profitA.toString())
+    console.log('A realized Δ lamports #2:', profitA2.toString())
+    console.log('A realized Δ lamports #3:', profitA3.toString())
     console.log('B realized Δ lamports:', profitB.toString())
     console.log(
       'A realized SOL/USD:',
@@ -284,6 +279,7 @@ describe('continuous linear curve — lean scenario', () => {
 
     // sanity: treasury should remain solvent
     const t = await solBal(connection, solTreasuryPda)
-    expect(BigInt(t.lamports)).to.be.greaterThan(0)
+    console.log('Treasury', t)
+    expect(t.lamports).to.be.greaterThan(0)
   })
 })

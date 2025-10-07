@@ -1,4 +1,14 @@
-import { createLogger, config, validateConfig } from '@doomsday/shared'
+import {
+  createLogger,
+  config,
+  validateConfig,
+  DoomsdayClient,
+  getDoomsdayIdl,
+  CountryRegistry,
+  findTopHolderForMint,
+} from '@doomsday/shared'
+import { Connection, Keypair, PublicKey } from '@solana/web3.js'
+import * as anchor from '@coral-xyz/anchor'
 import { Queue, Worker, Job } from 'bullmq'
 import { PresidentUpdateJob } from '@doomsday/shared'
 import Redis from 'ioredis'
@@ -56,11 +66,81 @@ class PresidentUpdaterService {
         logger.info(`Processing president update for country ${countryId}`)
 
         try {
-          // TODO: Implement actual president update logic
-          // 1. Scan token accounts for the country mint
-          // 2. Calculate free balances (exclude vaults/LPs)
-          // 3. Find highest balance holder
-          // 4. Update president on-chain
+          // Load IDL and set up program client
+          const idl = getDoomsdayIdl()
+          const connection = new Connection(
+            config.solana.rpcEndpoint,
+            'confirmed'
+          )
+          const wallet = Keypair.generate()
+          const client = new DoomsdayClient(connection, wallet, idl)
+
+          // Fetch country to obtain mint and exclusion accounts; if not on-chain yet, fallback to registry
+          const registry = new CountryRegistry()
+          const country = await client.fetchCountry(countryId)
+
+          let mint: PublicKey
+          const excludeSet = new Set<string>()
+          if (country) {
+            mint = country.mint
+            excludeSet.add(country.tokenVault.toBase58())
+            if (country.raydiumVaultA)
+              excludeSet.add(country.raydiumVaultA.toBase58())
+            if (country.raydiumVaultB)
+              excludeSet.add(country.raydiumVaultB.toBase58())
+          } else {
+            const entry = registry.getById(countryId)
+            if (!entry?.mint) {
+              logger.warn(
+                `No on-chain country or registry mint for id ${countryId}`
+              )
+              return
+            }
+            mint = new PublicKey(entry.mint)
+          }
+
+          // Build exclusion sets
+          const excludeOwners = new Set<string>(
+            (process.env.PRESIDENT_EXCLUDE_OWNERS || '')
+              .split(',')
+              .map((s) => s.trim())
+              .filter(Boolean)
+          )
+          const excludeTokenAccounts = new Set<string>([
+            ...excludeSet,
+            ...(process.env.PRESIDENT_EXCLUDE_TOKEN_ACCOUNTS || '')
+              .split(',')
+              .map((s) => s.trim())
+              .filter(Boolean),
+          ])
+
+          const top = await findTopHolderForMint(connection, mint, {
+            excludeOwners,
+            excludeTokenAccounts,
+            preferToken2022: true,
+          })
+
+          const topOwner = top?.owner || null
+          const topAmount = top
+            ? new anchor.BN(top.amountRaw.toString())
+            : new anchor.BN(0)
+
+          if (!topOwner) {
+            logger.info(`No holder found for country ${countryId}`)
+            return
+          }
+
+          if (!config.service.enableDryRun) {
+            await client.setPresidentOffchain(countryId, topOwner, topAmount)
+            logger.info(
+              `Set president for ${countryId} to ${topOwner.toBase58()}`
+            )
+          } else {
+            logger.debug(`DryRun: would set president for ${countryId}`, {
+              owner: topOwner.toBase58(),
+              amount: topAmount.toString(),
+            })
+          }
 
           logger.info(`Successfully updated president for country ${countryId}`)
         } catch (error) {

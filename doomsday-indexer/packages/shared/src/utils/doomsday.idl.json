@@ -1,0 +1,1854 @@
+{
+  "address": "7KfFEX13WEqj8LjQm2p3causqkGRp27ejHinsHRNWrdK",
+  "metadata": {
+    "name": "doomsday",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Created with Anchor"
+  },
+  "instructions": [
+    {
+      "name": "buy_on_curve",
+      "discriminator": [6, 20, 84, 191, 116, 79, 21, 147],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "global",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [71, 76, 79, 66, 65, 76]
+              }
+            ]
+          }
+        },
+        {
+          "name": "global_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [71, 76, 79, 66, 65, 76]
+              }
+            ]
+          }
+        },
+        {
+          "name": "country",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [67, 79, 85, 78, 84, 82, 89]
+              },
+              {
+                "kind": "account",
+                "path": "country.id",
+                "account": "Country"
+              }
+            ]
+          }
+        },
+        {
+          "name": "mint",
+          "writable": true
+        },
+        {
+          "name": "buyer_ata",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "payer"
+              },
+              {
+                "kind": "account",
+                "path": "token_program"
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140, 151, 37, 143, 78, 36, 137, 241, 187, 61, 16, 41, 20, 142,
+                13, 131, 11, 90, 19, 153, 218, 255, 16, 132, 4, 142, 123, 216,
+                219, 233, 248, 89
+              ]
+            }
+          }
+        },
+        {
+          "name": "token_vault",
+          "writable": true
+        },
+        {
+          "name": "sol_treasury",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [84, 82, 69, 65, 83, 85, 82, 89]
+              },
+              {
+                "kind": "account",
+                "path": "country.id",
+                "account": "Country"
+              }
+            ]
+          }
+        },
+        {
+          "name": "protocol_treasury",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  80, 82, 79, 84, 79, 95, 84, 82, 69, 65, 83, 85, 82, 89
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "burn_mint_auth",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [65, 85, 84, 72]
+              }
+            ]
+          }
+        },
+        {
+          "name": "auth",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [65, 85, 84, 72]
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "min_tokens_out",
+          "type": "u64"
+        },
+        {
+          "name": "sol_in",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "end_round",
+      "discriminator": [54, 47, 1, 200, 250, 6, 144, 63],
+      "accounts": [
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "global",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [71, 76, 79, 66, 65, 76]
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "winner_country_id",
+          "type": "u16"
+        },
+        {
+          "name": "next_end_unix",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "execute_second_prize",
+      "discriminator": [104, 30, 236, 181, 21, 145, 216, 249],
+      "accounts": [
+        {
+          "name": "global",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [71, 76, 79, 66, 65, 76]
+              }
+            ]
+          }
+        },
+        {
+          "name": "global_account",
+          "docs": ["CHECK"],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [71, 76, 79, 66, 65, 76]
+              }
+            ]
+          }
+        },
+        {
+          "name": "winner_country",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [67, 79, 85, 78, 84, 82, 89]
+              },
+              {
+                "kind": "account",
+                "path": "winner_country.id",
+                "account": "Country"
+              }
+            ]
+          }
+        },
+        {
+          "name": "winner_mint",
+          "writable": true
+        },
+        {
+          "name": "winner_token_vault",
+          "writable": true
+        },
+        {
+          "name": "winner_sol_treasury",
+          "docs": ["CHECK"],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [84, 82, 69, 65, 83, 85, 82, 89]
+              },
+              {
+                "kind": "account",
+                "path": "winner_country.id",
+                "account": "Country"
+              }
+            ]
+          }
+        },
+        {
+          "name": "burn_mint_auth",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [65, 85, 84, 72]
+              }
+            ]
+          }
+        },
+        {
+          "name": "auth",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [65, 85, 84, 72]
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+        }
+      ],
+      "args": [
+        {
+          "name": "_raydium_ix_data",
+          "type": {
+            "option": "bytes"
+          }
+        }
+      ]
+    },
+    {
+      "name": "freeze_curve",
+      "discriminator": [32, 111, 233, 162, 73, 192, 120, 77],
+      "accounts": [
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "global",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [71, 76, 79, 66, 65, 76]
+              }
+            ]
+          }
+        },
+        {
+          "name": "country",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [67, 79, 85, 78, 84, 82, 89]
+              },
+              {
+                "kind": "account",
+                "path": "country.id",
+                "account": "Country"
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "get_country_price",
+      "discriminator": [149, 174, 146, 254, 141, 254, 114, 221],
+      "accounts": [
+        {
+          "name": "country",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [67, 79, 85, 78, 84, 82, 89]
+              },
+              {
+                "kind": "account",
+                "path": "country.id",
+                "account": "Country"
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "get_country_price_view",
+      "discriminator": [158, 248, 205, 30, 187, 72, 34, 224],
+      "accounts": [
+        {
+          "name": "country",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [67, 79, 85, 78, 84, 82, 89]
+              },
+              {
+                "kind": "account",
+                "path": "country.id",
+                "account": "Country"
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "init_country",
+      "discriminator": [201, 133, 157, 82, 200, 54, 95, 169],
+      "accounts": [
+        {
+          "name": "global",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true,
+          "relations": ["global"]
+        },
+        {
+          "name": "country",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [67, 79, 85, 78, 84, 82, 89]
+              },
+              {
+                "kind": "arg",
+                "path": "id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "mint",
+          "writable": true
+        },
+        {
+          "name": "token_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "burn_mint_auth"
+              },
+              {
+                "kind": "account",
+                "path": "token_program"
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140, 151, 37, 143, 78, 36, 137, 241, 187, 61, 16, 41, 20, 142,
+                13, 131, 11, 90, 19, 153, 218, 255, 16, 132, 4, 142, 123, 216,
+                219, 233, 248, 89
+              ]
+            }
+          }
+        },
+        {
+          "name": "sol_treasury",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [84, 82, 69, 65, 83, 85, 82, 89]
+              },
+              {
+                "kind": "arg",
+                "path": "id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "burn_mint_auth",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [65, 85, 84, 72]
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "id",
+          "type": "u16"
+        },
+        {
+          "name": "virtual_sol",
+          "type": "u128"
+        },
+        {
+          "name": "virtual_token",
+          "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "init_global",
+      "discriminator": [44, 238, 77, 253, 76, 182, 192, 162],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "global",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [71, 76, 79, 66, 65, 76]
+              }
+            ]
+          }
+        },
+        {
+          "name": "protocol_treasury",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  80, 82, 79, 84, 79, 95, 84, 82, 69, 65, 83, 85, 82, 89
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "auth",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [65, 85, 84, 72]
+              }
+            ]
+          }
+        },
+        {
+          "name": "burn_mint_auth",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [65, 85, 84, 72]
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "round_ends_at_unix",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "launch_nuke",
+      "discriminator": [135, 137, 106, 28, 172, 54, 93, 153],
+      "accounts": [
+        {
+          "name": "global",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [71, 76, 79, 66, 65, 76]
+              }
+            ]
+          }
+        },
+        {
+          "name": "winner_country",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [67, 79, 85, 78, 84, 82, 89]
+              },
+              {
+                "kind": "account",
+                "path": "winner_country.id",
+                "account": "Country"
+              }
+            ]
+          }
+        },
+        {
+          "name": "president",
+          "signer": true
+        },
+        {
+          "name": "target_country",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [67, 79, 85, 78, 84, 82, 89]
+              },
+              {
+                "kind": "account",
+                "path": "target_country.id",
+                "account": "Country"
+              }
+            ]
+          }
+        },
+        {
+          "name": "target_sol_treasury",
+          "docs": ["CHECK"],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [84, 82, 69, 65, 83, 85, 82, 89]
+              },
+              {
+                "kind": "account",
+                "path": "target_country.id",
+                "account": "Country"
+              }
+            ]
+          }
+        },
+        {
+          "name": "winner_mint",
+          "writable": true
+        },
+        {
+          "name": "winner_token_vault",
+          "writable": true
+        },
+        {
+          "name": "winner_sol_treasury",
+          "docs": ["CHECK"],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [84, 82, 69, 65, 83, 85, 82, 89]
+              },
+              {
+                "kind": "account",
+                "path": "winner_country.id",
+                "account": "Country"
+              }
+            ]
+          }
+        },
+        {
+          "name": "random_country_sol_treasury",
+          "docs": ["CHECK (donation leg)"],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [84, 82, 69, 65, 83, 85, 82, 89]
+              },
+              {
+                "kind": "arg",
+                "path": "random_country_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "burn_mint_auth",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [65, 85, 84, 72]
+              }
+            ]
+          }
+        },
+        {
+          "name": "auth",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [65, 85, 84, 72]
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+        }
+      ],
+      "args": [
+        {
+          "name": "target_country_id",
+          "type": "u16"
+        },
+        {
+          "name": "random_country_id",
+          "type": "u16"
+        },
+        {
+          "name": "_raydium_ix_data",
+          "type": {
+            "option": "bytes"
+          }
+        }
+      ]
+    },
+    {
+      "name": "seed_raydium_pool",
+      "docs": [
+        "Transfers seeding liquidity into program-owned custody (PDA) and records Raydium pool.",
+        "SOL moves from country treasury to the program signer PDA; tokens move from program vault",
+        "to a PDA-owned token account. This ensures the program owns liquidity and can later",
+        "add/remove liquidity via CPI. Finally, it records Raydium pool addresses and flips mode → Amm."
+      ],
+      "discriminator": [203, 255, 125, 168, 139, 36, 111, 187],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "global",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [71, 76, 79, 66, 65, 76]
+              }
+            ]
+          }
+        },
+        {
+          "name": "country",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [67, 79, 85, 78, 84, 82, 89]
+              },
+              {
+                "kind": "account",
+                "path": "country.id",
+                "account": "Country"
+              }
+            ]
+          }
+        },
+        {
+          "name": "mint",
+          "writable": true
+        },
+        {
+          "name": "token_vault",
+          "writable": true
+        },
+        {
+          "name": "sol_treasury",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [84, 82, 69, 65, 83, 85, 82, 89]
+              },
+              {
+                "kind": "account",
+                "path": "country.id",
+                "account": "Country"
+              }
+            ]
+          }
+        },
+        {
+          "name": "liquidity_token_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "burn_mint_auth"
+              },
+              {
+                "kind": "account",
+                "path": "token_program"
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140, 151, 37, 143, 78, 36, 137, 241, 187, 61, 16, 41, 20, 142,
+                13, 131, 11, 90, 19, 153, 218, 255, 16, 132, 4, 142, 123, 216,
+                219, 233, 248, 89
+              ]
+            }
+          }
+        },
+        {
+          "name": "burn_mint_auth",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [65, 85, 84, 72]
+              }
+            ]
+          }
+        },
+        {
+          "name": "auth",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [65, 85, 84, 72]
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "raydium_program",
+          "type": "pubkey"
+        },
+        {
+          "name": "pool_state",
+          "type": "pubkey"
+        },
+        {
+          "name": "raydium_vault_a",
+          "type": "pubkey"
+        },
+        {
+          "name": "raydium_vault_b",
+          "type": "pubkey"
+        },
+        {
+          "name": "raydium_ix_data",
+          "type": "bytes"
+        }
+      ]
+    },
+    {
+      "name": "sell_on_curve",
+      "discriminator": [158, 242, 158, 47, 48, 215, 214, 209],
+      "accounts": [
+        {
+          "name": "seller",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "global",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [71, 76, 79, 66, 65, 76]
+              }
+            ]
+          }
+        },
+        {
+          "name": "country",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [67, 79, 85, 78, 84, 82, 89]
+              },
+              {
+                "kind": "account",
+                "path": "country.id",
+                "account": "Country"
+              }
+            ]
+          }
+        },
+        {
+          "name": "global_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [71, 76, 79, 66, 65, 76]
+              }
+            ]
+          }
+        },
+        {
+          "name": "mint",
+          "writable": true
+        },
+        {
+          "name": "seller_ata",
+          "writable": true
+        },
+        {
+          "name": "token_vault",
+          "writable": true
+        },
+        {
+          "name": "sol_treasury",
+          "docs": ["CHECK"],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [84, 82, 69, 65, 83, 85, 82, 89]
+              },
+              {
+                "kind": "account",
+                "path": "country.id",
+                "account": "Country"
+              }
+            ]
+          }
+        },
+        {
+          "name": "protocol_treasury",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  80, 82, 79, 84, 79, 95, 84, 82, 69, 65, 83, 85, 82, 89
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "burn_mint_auth",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [65, 85, 84, 72]
+              }
+            ]
+          }
+        },
+        {
+          "name": "auth",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [65, 85, 84, 72]
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "min_sol_out",
+          "type": "u64"
+        },
+        {
+          "name": "tokens_in",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "set_country_pause",
+      "discriminator": [101, 9, 48, 190, 60, 199, 158, 245],
+      "accounts": [
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "global",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [71, 76, 79, 66, 65, 76]
+              }
+            ]
+          }
+        },
+        {
+          "name": "country",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [67, 79, 85, 78, 84, 82, 89]
+              },
+              {
+                "kind": "account",
+                "path": "country.id",
+                "account": "Country"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "paused",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "set_country_quote_offchain",
+      "discriminator": [122, 137, 54, 206, 241, 23, 244, 67],
+      "accounts": [
+        {
+          "name": "updater",
+          "signer": true
+        },
+        {
+          "name": "global",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [71, 76, 79, 66, 65, 76]
+              }
+            ]
+          }
+        },
+        {
+          "name": "country",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [67, 79, 85, 78, 84, 82, 89]
+              },
+              {
+                "kind": "account",
+                "path": "country.id",
+                "account": "Country"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "price_q64",
+          "type": "u128"
+        },
+        {
+          "name": "marketcap",
+          "type": "u128"
+        },
+        {
+          "name": "source",
+          "type": {
+            "defined": {
+              "name": "QuoteSource"
+            }
+          }
+        },
+        {
+          "name": "observed_at",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "set_pause",
+      "discriminator": [63, 32, 154, 2, 56, 103, 79, 45],
+      "accounts": [
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "global",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [71, 76, 79, 66, 65, 76]
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "paused",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "set_president_offchain",
+      "discriminator": [153, 3, 239, 188, 22, 92, 220, 0],
+      "accounts": [
+        {
+          "name": "updater",
+          "signer": true
+        },
+        {
+          "name": "global",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [71, 76, 79, 66, 65, 76]
+              }
+            ]
+          }
+        },
+        {
+          "name": "country",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [67, 79, 85, 78, 84, 82, 89]
+              },
+              {
+                "kind": "account",
+                "path": "country.id",
+                "account": "Country"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "new_president",
+          "type": "pubkey"
+        },
+        {
+          "name": "top_holder_free_balance",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "withdraw_protocol_fees",
+      "discriminator": [11, 68, 165, 98, 18, 208, 134, 73],
+      "accounts": [
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "global",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [71, 76, 79, 66, 65, 76]
+              }
+            ]
+          }
+        },
+        {
+          "name": "protocol_treasury",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  80, 82, 79, 84, 79, 95, 84, 82, 69, 65, 83, 85, 82, 89
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "recipient",
+          "writable": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "lamports",
+          "type": "u64"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Authorities",
+      "discriminator": [149, 69, 232, 208, 223, 63, 191, 3]
+    },
+    {
+      "name": "Country",
+      "discriminator": [164, 237, 10, 6, 41, 234, 56, 158]
+    },
+    {
+      "name": "Global",
+      "discriminator": [167, 232, 232, 177, 200, 108, 114, 127]
+    }
+  ],
+  "events": [
+    {
+      "name": "BoughtOnCurve",
+      "discriminator": [1, 98, 255, 43, 61, 71, 58, 82]
+    },
+    {
+      "name": "CountryPrice",
+      "discriminator": [131, 108, 214, 9, 100, 149, 69, 83]
+    },
+    {
+      "name": "CurveFrozen",
+      "discriminator": [179, 163, 227, 174, 28, 144, 67, 186]
+    },
+    {
+      "name": "MigratedToAmm",
+      "discriminator": [243, 124, 139, 232, 19, 190, 136, 113]
+    },
+    {
+      "name": "NukeLaunched",
+      "discriminator": [200, 27, 78, 126, 106, 65, 61, 220]
+    },
+    {
+      "name": "PresidentUpdated",
+      "discriminator": [96, 128, 142, 69, 215, 194, 117, 244]
+    },
+    {
+      "name": "RoundEnded",
+      "discriminator": [70, 113, 6, 162, 176, 78, 201, 19]
+    },
+    {
+      "name": "SecondPrizeExecuted",
+      "discriminator": [239, 49, 59, 15, 150, 157, 196, 31]
+    },
+    {
+      "name": "SoldOnCurve",
+      "discriminator": [147, 231, 167, 243, 1, 150, 130, 46]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "Paused",
+      "msg": "Paused"
+    },
+    {
+      "code": 6001,
+      "name": "RoundNotEnded",
+      "msg": "Round not ended yet"
+    },
+    {
+      "code": 6002,
+      "name": "NukeAlreadyUsed",
+      "msg": "Already nuked this round"
+    },
+    {
+      "code": 6003,
+      "name": "NotWinnerPresident",
+      "msg": "Only winner president may launch nuke"
+    },
+    {
+      "code": 6004,
+      "name": "CountryNuked",
+      "msg": "Country nuked"
+    },
+    {
+      "code": 6005,
+      "name": "InvalidAmount",
+      "msg": "Invalid amount"
+    },
+    {
+      "code": 6006,
+      "name": "Slippage",
+      "msg": "Slippage exceeded"
+    },
+    {
+      "code": 6007,
+      "name": "Unauthorized",
+      "msg": "Unauthorized"
+    },
+    {
+      "code": 6008,
+      "name": "WrongMode",
+      "msg": "Wrong market mode"
+    },
+    {
+      "code": 6009,
+      "name": "CurveNotFrozen",
+      "msg": "Curve not frozen"
+    },
+    {
+      "code": 6010,
+      "name": "InsufficientLiquidity",
+      "msg": "Insufficient liquidity"
+    }
+  ],
+  "types": [
+    {
+      "name": "Authorities",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "burn_mint_auth_bump",
+            "type": "u8"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "BoughtOnCurve",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "round",
+            "type": "u32"
+          },
+          {
+            "name": "country",
+            "type": "u16"
+          },
+          {
+            "name": "buyer",
+            "type": "pubkey"
+          },
+          {
+            "name": "sol_in",
+            "type": "u64"
+          },
+          {
+            "name": "tokens_out",
+            "type": "u64"
+          },
+          {
+            "name": "price_bp",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Country",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "id",
+            "type": "u16"
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": {
+                "name": "CountryStatus"
+              }
+            }
+          },
+          {
+            "name": "paused",
+            "type": "bool"
+          },
+          {
+            "name": "mode",
+            "type": {
+              "defined": {
+                "name": "MarketMode"
+              }
+            }
+          },
+          {
+            "name": "curve_frozen",
+            "type": "bool"
+          },
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "token_vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "sol_treasury",
+            "type": "pubkey"
+          },
+          {
+            "name": "virtual_sol",
+            "type": "u128"
+          },
+          {
+            "name": "virtual_token",
+            "type": "u128"
+          },
+          {
+            "name": "supply_minted",
+            "type": "u64"
+          },
+          {
+            "name": "supply_burned",
+            "type": "u64"
+          },
+          {
+            "name": "curve_fee_bp",
+            "type": "u64"
+          },
+          {
+            "name": "step_tokens",
+            "type": "u64"
+          },
+          {
+            "name": "step_base_price_lamports",
+            "type": "u64"
+          },
+          {
+            "name": "curve_slope_per_token_sq_e6",
+            "type": "u64"
+          },
+          {
+            "name": "current_step_index",
+            "type": "u64"
+          },
+          {
+            "name": "sold_in_current_step",
+            "type": "u64"
+          },
+          {
+            "name": "president",
+            "type": "pubkey"
+          },
+          {
+            "name": "top_holder_cached",
+            "type": "u64"
+          },
+          {
+            "name": "migrate_threshold_usd_e6",
+            "type": "u64"
+          },
+          {
+            "name": "raydium_pool_state",
+            "type": "pubkey"
+          },
+          {
+            "name": "raydium_vault_a",
+            "type": "pubkey"
+          },
+          {
+            "name": "raydium_vault_b",
+            "type": "pubkey"
+          },
+          {
+            "name": "raydium_program",
+            "type": "pubkey"
+          },
+          {
+            "name": "migrated_at_ts",
+            "type": "i64"
+          },
+          {
+            "name": "quote_price_q64",
+            "type": "u128"
+          },
+          {
+            "name": "quote_marketcap",
+            "type": "u128"
+          },
+          {
+            "name": "quote_source",
+            "type": {
+              "defined": {
+                "name": "QuoteSource"
+              }
+            }
+          },
+          {
+            "name": "quote_observed_at",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CountryPrice",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "country",
+            "type": "u16"
+          },
+          {
+            "name": "mode",
+            "type": {
+              "defined": {
+                "name": "MarketMode"
+              }
+            }
+          },
+          {
+            "name": "price_lamports_per_token",
+            "type": "u64"
+          },
+          {
+            "name": "step_index",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CountryStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Active"
+          },
+          {
+            "name": "Nuked"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CurveFrozen",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "country",
+            "type": "u16"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Global",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "round_index",
+            "type": "u32"
+          },
+          {
+            "name": "round_ends_at_unix",
+            "type": "i64"
+          },
+          {
+            "name": "winner_country_id",
+            "type": "u16"
+          },
+          {
+            "name": "nuke_consumed_for_round",
+            "type": "bool"
+          },
+          {
+            "name": "prize_pot_lamports",
+            "type": "u64"
+          },
+          {
+            "name": "countries_live",
+            "type": "u16"
+          },
+          {
+            "name": "paused",
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "second_prize_claimed_round",
+            "type": "u32"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MarketMode",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Curve"
+          },
+          {
+            "name": "Amm"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MigratedToAmm",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "country",
+            "type": "u16"
+          },
+          {
+            "name": "pool_state",
+            "type": "pubkey"
+          },
+          {
+            "name": "at",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "NukeLaunched",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "round_index",
+            "type": "u32"
+          },
+          {
+            "name": "winner_country_id",
+            "type": "u16"
+          },
+          {
+            "name": "target_country_id",
+            "type": "u16"
+          },
+          {
+            "name": "sol_rugged",
+            "type": "u64"
+          },
+          {
+            "name": "to_buyback",
+            "type": "u64"
+          },
+          {
+            "name": "to_random",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PresidentUpdated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "country",
+            "type": "u16"
+          },
+          {
+            "name": "president",
+            "type": "pubkey"
+          },
+          {
+            "name": "top_holder",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "QuoteSource",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Curve"
+          },
+          {
+            "name": "Raydium"
+          },
+          {
+            "name": "Oracle"
+          },
+          {
+            "name": "Unknown"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RoundEnded",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "round_index",
+            "type": "u32"
+          },
+          {
+            "name": "winner_country_id",
+            "type": "u16"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SecondPrizeExecuted",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "round_index",
+            "type": "u32"
+          },
+          {
+            "name": "winner_country_id",
+            "type": "u16"
+          },
+          {
+            "name": "sol_spent",
+            "type": "u64"
+          },
+          {
+            "name": "tokens_burned",
+            "type": "u64"
+          },
+          {
+            "name": "mode",
+            "type": {
+              "defined": {
+                "name": "MarketMode"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "SoldOnCurve",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "round",
+            "type": "u32"
+          },
+          {
+            "name": "country",
+            "type": "u16"
+          },
+          {
+            "name": "seller",
+            "type": "pubkey"
+          },
+          {
+            "name": "tokens_in",
+            "type": "u64"
+          },
+          {
+            "name": "sol_out",
+            "type": "u64"
+          },
+          {
+            "name": "price_bp",
+            "type": "u64"
+          }
+        ]
+      }
+    }
+  ]
+}

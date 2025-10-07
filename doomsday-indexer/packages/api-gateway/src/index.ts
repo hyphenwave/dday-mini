@@ -7,11 +7,8 @@ import {
   config,
   validateConfig,
   RPCManager,
-  DoomsdayClient,
-  loadIdlFromEnv,
+  CountryRegistry,
 } from '@doomsday/shared'
-import { Connection, Keypair } from '@solana/web3.js'
-import { Idl } from '@coral-xyz/anchor'
 
 const logger = createLogger('api-gateway')
 
@@ -35,19 +32,17 @@ async function bootstrap() {
     const rpcManager = new RPCManager(config.solana.rpcEndpoint, [
       config.solana.backupRpc,
     ])
-    const connection = await rpcManager.getConnection()
-    const idl: Idl | null = loadIdlFromEnv()
-    const wallet = Keypair.generate()
-    const client = idl ? new DoomsdayClient(connection, wallet, idl) : null
+    await rpcManager.getConnection()
+    // const client = new DoomsdayClient(connection, wallet, idl)
 
     app.get('/api/health', async (_req, res) => {
       res.json({ status: 'ok' })
     })
 
     app.get('/api/countries', async (_req, res) => {
-      if (!client) return res.status(503).json({ error: 'IDL not loaded' })
-      const countries = await client.fetchAllCountries()
-      res.json({ count: countries.length })
+      const registry = new CountryRegistry()
+      const countries = registry.list()
+      res.json({ count: countries.length, countries })
     })
 
     const port = config.api.port

@@ -1,12 +1,13 @@
-import { AnchorProvider, Idl } from '@coral-xyz/anchor'
-import { Connection, Keypair } from '@solana/web3.js'
+import * as anchor from '@coral-xyz/anchor'
+import { Idl } from '@coral-xyz/anchor'
+import { Keypair } from '@solana/web3.js'
 import {
   createLogger,
   config,
   validateConfig,
   RPCManager,
   DoomsdayClient,
-  loadIdlFromEnv,
+  getDoomsdayIdl,
   MarketMode,
   QuoteSource,
   lamportsToSol,
@@ -23,12 +24,7 @@ async function main() {
     ])
     const connection = await rpcManager.getConnection()
 
-    const idl: Idl | null = loadIdlFromEnv()
-    if (!idl) {
-      logger.warn(
-        'IDL not provided via IDL_PATH; skipping on-chain txs (read-only mode)'
-      )
-    }
+    const idl: Idl = getDoomsdayIdl()
 
     // Use a dummy wallet in dry-run; transactions will be skipped
     const wallet = Keypair.generate()
@@ -40,7 +36,7 @@ async function main() {
     const interval = config.service.priceUpdateIntervalMs
     const timer = setInterval(async () => {
       try {
-        const conn = await rpcManager.getConnection()
+        await rpcManager.getConnection()
 
         // Fetch countries via client if available
         if (!client) return
@@ -60,12 +56,8 @@ async function main() {
 
           // Convert to expected program formats
           // price_q64: Q64.64 in lamports/SOL units; here simplified as lamports value placeholder
-          const priceQ64 = new (AnchorProvider as any).anchor.BN(
-            Math.floor(priceInSol * 2 ** 64)
-          )
-          const mcE6 = new (AnchorProvider as any).anchor.BN(
-            Math.floor(marketcap * 1_000_000)
-          )
+          const priceQ64 = new anchor.BN(Math.floor(priceInSol * 2 ** 64))
+          const mcE6 = new anchor.BN(Math.floor(marketcap * 1_000_000))
 
           const source =
             country.mode === MarketMode.Curve

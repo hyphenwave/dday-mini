@@ -6,7 +6,7 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-doomsday = "CS5ZMcpfdSS7WTgTQp7xYeVN9af3UoAdrZyMgKr3s8Bt"
+doomsday = "7KfFEX13WEqj8LjQm2p3causqkGRp27ejHinsHRNWrdK"
 
 [registry]
 url = "https://api.apr.dev"

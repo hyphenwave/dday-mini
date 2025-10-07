@@ -2,6 +2,7 @@ import { PublicKey, Keypair } from '@solana/web3.js'
 import * as anchor from '@coral-xyz/anchor'
 import fs from 'fs'
 import path from 'path'
+import countriesData from '../countries.json'
 
 /**
  * Load a keypair from a JSON file
@@ -253,4 +254,30 @@ export function isProduction(): boolean {
  */
 export function isDryRun(): boolean {
   return process.env.ENABLE_DRY_RUN === 'true'
+}
+
+export interface CountryRegistryEntry {
+  id: number
+  name: string
+  mint?: string
+}
+
+export class CountryRegistry {
+  private countries: CountryRegistryEntry[]
+
+  constructor() {
+    this.countries = countriesData as CountryRegistryEntry[]
+  }
+
+  list(): CountryRegistryEntry[] {
+    return this.countries
+  }
+
+  getById(id: number): CountryRegistryEntry | undefined {
+    return this.countries.find((c) => c.id === id)
+  }
+
+  getByMint(mint: string): CountryRegistryEntry | undefined {
+    return this.countries.find((c) => c.mint === mint)
+  }
 }

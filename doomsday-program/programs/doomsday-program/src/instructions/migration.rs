@@ -4,7 +4,6 @@ use anchor_lang::solana_program::program::invoke_signed;
 use anchor_spl::token::accessor;
 use anchor_spl::token_interface as token;
 
-use crate::*;
 use crate::events::{CurveFrozen, MigratedToAmm};
 
 pub fn freeze_curve(ctx: Context<crate::FreezeCurve>) -> Result<()> {

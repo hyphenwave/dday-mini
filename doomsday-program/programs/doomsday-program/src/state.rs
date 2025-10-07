@@ -1,5 +1,5 @@
-use anchor_lang::prelude::*;
 use crate::constants::*;
+use anchor_lang::prelude::*;
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq)]
 pub enum CountryStatus {
@@ -73,11 +73,11 @@ pub struct Country {
     pub curve_fee_bp: u64,
 
     // Step-curve parameters (Pump.fun style)
-    pub step_tokens: u64,                   // tokens per step bucket
-    pub step_base_price_lamports: u64,      // price per token at step 0
-    pub step_price_increment_lamports: u64, // price increment per step
-    pub current_step_index: u64,            // current step bucket index
-    pub sold_in_current_step: u64,          // tokens sold within current step
+    pub step_tokens: u64,                 // tokens per step bucket
+    pub step_base_price_lamports: u64,    // price per token at step 0
+    pub curve_slope_per_token_sq_e6: u64, // price increment per step
+    pub current_step_index: u64,          // current step bucket index
+    pub sold_in_current_step: u64,        // tokens sold within current step
 
     // Presidency (off-chain maintained)
     pub president: Pubkey,

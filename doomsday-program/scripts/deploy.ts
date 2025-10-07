@@ -1,27 +1,27 @@
 import * as anchor from '@coral-xyz/anchor'
 import { Program } from '@coral-xyz/anchor'
-import { DdayMiniProgram } from '../target/types/dday_mini_program'
+import { Doomsday } from '../target/types/doomsday'
 
 async function main() {
   // Configure the client to use the local cluster
   anchor.setProvider(anchor.AnchorProvider.env())
 
-  const program = anchor.workspace.DdayMiniProgram as Program<DdayMiniProgram>
+  const program = anchor.workspace.DdayMiniProgram as Program<Doomsday>
   const provider = anchor.getProvider()
 
   console.log('🚀 Deploying World PvP Program...')
 
   // Initialize the game
-  const [gamePda] = anchor.web3.PublicKey.findProgramAddressSync(
-    [Buffer.from('game')],
+  const [globalPda] = anchor.web3.PublicKey.findProgramAddressSync(
+    [Buffer.from('GLOBAL')],
     program.programId
   )
 
   try {
     const tx = await program.methods
-      .initializeGame()
+      .initGlobal()
       .accounts({
-        game: gamePda,
+        global: globalPda,
         authority: provider.wallet.publicKey,
         systemProgram: anchor.web3.SystemProgram.programId,
       })

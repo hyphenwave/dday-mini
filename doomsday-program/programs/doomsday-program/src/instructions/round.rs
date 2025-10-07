@@ -1,6 +1,5 @@
-use crate::*;
 use crate::events::{PresidentUpdated, RoundEnded};
-use anchor_lang::prelude::*;
+use crate::*;
 
 pub fn set_president_offchain(
     ctx: Context<crate::SetPresidentOffchain>,

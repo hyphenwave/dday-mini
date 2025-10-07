@@ -63,7 +63,7 @@ pub struct InitCountry<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
 
-    #[account(init, payer=authority, space=8 + 400, seeds=[COUNTRY_SEED, &id.to_le_bytes()], bump)]
+    #[account(init, payer=authority, space=8 + 424, seeds=[COUNTRY_SEED, &id.to_le_bytes()], bump)]
     pub country: Account<'info, Country>,
 
     // Token‑2022 mint (created off‑chain). Set its mint_authority to AUTH PDA.
@@ -145,6 +145,10 @@ pub struct SellOnCurve<'info> {
     #[account(mut, seeds=[COUNTRY_SEED, &country.id.to_le_bytes()], bump=country.bump)]
     pub country: Account<'info, Country>,
 
+    /// CHECK: prize pot holder (same PDA)
+    #[account(mut, seeds=[GLOBAL_SEED], bump=global.bump)]
+    pub global_account: UncheckedAccount<'info>,
+
     #[account(mut)]
     pub mint: InterfaceAccount<'info, Mint>,
 
@@ -161,6 +165,12 @@ pub struct SellOnCurve<'info> {
     /// CHECK: protocol treasury PDA
     #[account(mut, seeds=[PROTOCOL_TREASURY_SEED], bump)]
     pub protocol_treasury: UncheckedAccount<'info>,
+
+    /// CHECK: signer PDA for mint authority (owner of token_vault)
+    #[account(seeds=[AUTH_SEED], bump=auth.burn_mint_auth_bump)]
+    pub burn_mint_auth: UncheckedAccount<'info>,
+    #[account(seeds=[AUTH_SEED], bump=auth.bump)]
+    pub auth: Account<'info, Authorities>,
 
     pub token_program: Program<'info, Token2022>,
     pub system_program: Program<'info, System>,

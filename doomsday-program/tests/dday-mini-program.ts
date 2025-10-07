@@ -7,8 +7,17 @@ import {
   getAssociatedTokenAddressSync,
   createInitializeMint2Instruction,
   getMinimumBalanceForRentExemptMint,
+  createMintToInstruction,
+  getOrCreateAssociatedTokenAccount,
+  createTransferCheckedInstruction,
 } from '@solana/spl-token'
-import { Keypair, PublicKey, SystemProgram, Transaction } from '@solana/web3.js'
+import {
+  ComputeBudgetProgram,
+  Keypair,
+  PublicKey,
+  SystemProgram,
+  Transaction,
+} from '@solana/web3.js'
 import { expect } from 'chai'
 
 // -------- CONFIG --------
@@ -19,6 +28,7 @@ const TOKEN_DECIMALS = 9
 // Program idl type name must match your IDL name:
 //   anchor build → target/types/doomsday.ts  (adjust import if different)
 import { Doomsday } from '../target/types/doomsday'
+import { solBal, tokenBal } from './utils'
 
 // PDA seeds (must match your Rust)
 const GLOBAL_SEED = Buffer.from('GLOBAL')
@@ -34,7 +44,13 @@ const AUTH_SEED = Buffer.from('AUTH')
 const PROTO_TREASURY_SEED = Buffer.from('PROTO_TREASURY')
 
 describe('Doomsday — curve→AMM happy path', () => {
-  anchor.setProvider(anchor.AnchorProvider.env())
+  const baseProvider = anchor.AnchorProvider.env()
+  const finalizedProvider = new anchor.AnchorProvider(
+    baseProvider.connection,
+    baseProvider.wallet,
+    { commitment: 'finalized', preflightCommitment: 'finalized' }
+  )
+  anchor.setProvider(finalizedProvider)
   const provider = anchor.getProvider() as anchor.AnchorProvider
   const connection = provider.connection
   const wallet = provider.wallet as anchor.Wallet
@@ -49,7 +65,7 @@ describe('Doomsday — curve→AMM happy path', () => {
   // Utilities
   const airdrop = async (to: PublicKey, lamports: number) => {
     const sig = await connection.requestAirdrop(to, lamports)
-    await connection.confirmTransaction(sig, 'confirmed')
+    await connection.confirmTransaction(sig, 'finalized')
   }
 
   const createMint2022 = async (
@@ -110,7 +126,7 @@ describe('Doomsday — curve→AMM happy path', () => {
     )
 
     // Fund the test wallet a bit
-    await airdrop(wallet.publicKey, 2e9) // 2 SOL
+    await airdrop(wallet.publicKey, 1000e9) // 1000 SOL
 
     // Initialize Global (round ends in ~1h)
     const now = Math.floor(Date.now() / 1000)
@@ -128,7 +144,8 @@ describe('Doomsday — curve→AMM happy path', () => {
       })
       .rpc()
     // console.log('init_global tx', tx);
-
+    console.log('globalPda', globalPda.toBase58())
+    console.log('Init Global Transaction hash: ', tx.toString())
     const g = await program.account.global.fetch(globalPda)
     expect(g.roundIndex).to.eq(1)
   })
@@ -177,12 +194,12 @@ describe('Doomsday — curve→AMM happy path', () => {
         const vSol = new BN(0)
         const vTok = new BN(0)
 
+        console.log('initCountryTx', countryId, vSol, vTok)
         const initCountryTx = await program.methods
           .initCountry(countryId, vSol, vTok)
           .accounts({
             global: globalPda,
             // authority: wallet.publicKey,
-            //country: countryPda,
             mint: mintPk,
             // tokenVault: tokenVaultAta,
             // solTreasury: solTreasuryPda, // ← must exist → patch in Rust makes it init
@@ -192,39 +209,41 @@ describe('Doomsday — curve→AMM happy path', () => {
             //systemProgram: SystemProgram.programId,
           })
           .rpc()
-        // console.log('init_country tx', initCountryTx);
+        console.log('init_country tx', countryId + ' ' + initCountryTx)
 
         // --- BUY on curve ---
         // Create buyer ATA implicitly via CPI (init_if_needed) in buy_on_curve
-        const solInLamports = 200_000 // 0.0002 SOL
+        const solInLamports = 10e9 // 10 SOL
         const minTokensOut = 1 // accept whatever >=1 token
 
+        const additionalComputeBudgetInstruction =
+          ComputeBudgetProgram.setComputeUnitLimit({
+            units: 55555500,
+          })
+        console.log(await solBal(connection, solTreasuryPda))
         const buyTx = await program.methods
           .buyOnCurve(new BN(minTokensOut), new BN(solInLamports))
+          .accountsPartial({ country: countryPda, solTreasury: solTreasuryPda })
           .accounts({
             payer: wallet.publicKey,
-            //global: globalPda,
-            // globalAccount: globalPda, // same PDA (prize pot)
-            // country: countryPda,
             mint: mintPk,
-            /* buyerAta: getAssociatedTokenAddressSync(
-              mintPk,
-              wallet.publicKey,
-              false,
-              TOKEN_2022_PROGRAM_ID
-            ), */
             tokenVault: tokenVaultAta,
-            //solTreasury: solTreasuryPda,
-            // protocolTreasury: protocolTreasuryPda,
-            //burnMintAuth: burnMintAuthPda,
-            //auth: authPda,
-            // tokenProgram: TOKEN_2022_PROGRAM_ID,
-            //associatedTokenProgram: anchor.utils.token.ASSOCIATED_PROGRAM_ID,
-            //systemProgram: SystemProgram.programId,
           })
+          .preInstructions([additionalComputeBudgetInstruction])
           .rpc()
-        // console.log('buy_on_curve tx', buyTx);
 
+        console.log('buy_on_curve tx', buyTx)
+        console.log(await solBal(connection, solTreasuryPda))
+        const countryAccBuy = await program.account.country.fetch(countryPda)
+        //   console.log('countryAccBuy', countryAccBuy)
+        const sellerAta = getAssociatedTokenAddressSync(
+          mintPk,
+          wallet.publicKey,
+          false,
+          TOKEN_2022_PROGRAM_ID
+        )
+        console.log(await tokenBal(connection, tokenVaultAta))
+        console.log(await tokenBal(connection, sellerAta))
         // --- FETCH PRICE (event-based) ---
         await program.methods
           .getCountryPrice()
@@ -232,12 +251,15 @@ describe('Doomsday — curve→AMM happy path', () => {
           .rpc()
 
         const priceInfo = priceEvents[countryId] ?? null
+        console.log('priceInfo', priceInfo)
+        console.log('priceEvents', priceEvents)
 
         // --- SELL on curve ---
-        const tokensToSell = new BN(1) // sell 1 token
+        const tokensToSell = new BN(10e9) // sell 1 token
         const minSolOut = new BN(1) // any positive SOL
         const sellTx = await program.methods
           .sellOnCurve(minSolOut, tokensToSell)
+          .accountsPartial({ country: countryPda, solTreasury: solTreasuryPda })
           .accounts({
             seller: wallet.publicKey,
             //global: globalPda,
@@ -283,7 +305,7 @@ describe('Doomsday — curve→AMM happy path', () => {
         })
 
         // keep tests quick: only do a handful if file is large
-        if (results.length >= 5) break
+        if (results.length >= 1) break
       }
 
       fs.writeFileSync(

@@ -14,7 +14,6 @@
 // ---------------------------------------------------------------------------------
 
 use anchor_lang::prelude::*;
-use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token::accessor;
 use anchor_spl::token_interface as token;
 use anchor_spl::token_interface::{Mint, Token2022, TokenAccount};
@@ -228,38 +227,79 @@ fn internal_buy_and_burn<'info>(
     **sol_treasury.to_account_info().try_borrow_mut_lamports()? =
         sol_treasury.lamports().saturating_add(sol_in);
 
-    // Determine tokens to buy and burn using current step pricing.
-    let mut budget = sol_in;
+    // Determine tokens to buy and burn using continuous linear curve.
+    // We reuse the same integral used in buy_on_curve.
+    let mut budget = sol_in; // lamports available for buyback
     let mut tokens_to_burn: u64 = 0;
-    let mut vault_amount = accessor::amount(&token_vault.to_account_info())?;
-    while budget > 0 && vault_amount > 0 {
-        let step_size = country.step_tokens;
-        let step_sold = country.sold_in_current_step;
-        let remaining_in_step = step_size.saturating_sub(step_sold);
-        if remaining_in_step == 0 {
-            country.current_step_index = country.current_step_index.saturating_add(1);
-            country.sold_in_current_step = 0;
-            continue;
+    let vault_amount = accessor::amount(&token_vault.to_account_info())?;
+
+    // Curve params
+    let p0: u128 = country.step_base_price_lamports as u128; // lamports/token
+    let k_e6: u128 = country.curve_slope_per_token_sq_e6 as u128; // micro-lamports/token^2
+    let micro: u128 = 1_000_000u128;
+    let scale: u128 = 10u128.pow(crate::TOKEN_DECIMALS as u32);
+    let denom: u128 = scale.saturating_mul(scale).saturating_mul(micro);
+
+    // Fold current units
+    let step_units: u64 = country.step_tokens.max(1);
+    let mut u_units: u128 = crate::utils::fold_units(
+        country.current_step_index,
+        country.sold_in_current_step,
+        step_units,
+    );
+
+    // Cost(u, q)
+    #[inline(always)]
+    fn cost_lamports(
+        u_units: u128,
+        q_units: u128,
+        p0: u128,
+        k_e6: u128,
+        scale: u128,
+        denom: u128,
+    ) -> u128 {
+        if q_units == 0 {
+            return 0;
         }
-        let price_per_token = country.step_base_price_lamports.saturating_add(
-            country
-                .current_step_index
-                .saturating_mul(country.step_price_increment_lamports),
-        );
-        if price_per_token == 0 {
-            break;
-        }
-        let by_budget = budget / price_per_token;
-        let can_buy_now = by_budget.min(remaining_in_step).min(vault_amount);
-        if can_buy_now == 0 {
-            break;
-        }
-        let cost = can_buy_now.saturating_mul(price_per_token);
-        budget = budget.saturating_sub(cost);
-        tokens_to_burn = tokens_to_burn.saturating_add(can_buy_now);
-        country.sold_in_current_step = country.sold_in_current_step.saturating_add(can_buy_now);
-        vault_amount = vault_amount.saturating_sub(can_buy_now);
+        let term_base = (p0.saturating_mul(q_units).saturating_mul(scale))
+            .saturating_mul(2)
+            .saturating_mul(1_000_000);
+        let term_lin = (k_e6.saturating_mul(u_units).saturating_mul(q_units)).saturating_mul(2);
+        let term_quad = k_e6.saturating_mul(q_units).saturating_mul(q_units);
+        let num = term_base.saturating_add(term_lin).saturating_add(term_quad);
+        let den = denom.saturating_mul(2);
+        crate::utils::ceil_div_u128(num, den)
     }
+
+    // Binary search max q such that cost <= budget, bounded by vault
+    let mut lo: u128 = 0;
+    let mut hi: u128 = core::cmp::min(vault_amount as u128, u128::from(u64::MAX));
+    if budget > 0 && hi > 0 {
+        let b = budget as u128;
+        while lo < hi {
+            let mid = lo + (hi - lo + 1) / 2;
+            let cst = cost_lamports(u_units, mid, p0, k_e6, scale, denom);
+            if cst <= b {
+                lo = mid;
+            } else {
+                hi = mid - 1;
+            }
+        }
+    }
+    let q_units = lo as u64;
+    if q_units == 0 {
+        return Ok(0);
+    }
+    let _spent =
+        cost_lamports(u_units, lo, p0, k_e6, scale, denom).min(u128::from(u64::MAX)) as u64;
+
+    // Advance state by q_units (price ticks up)
+    u_units = u_units.saturating_add(q_units as u128);
+    let (idx, rem) = crate::utils::unfold_units(u_units, step_units);
+    country.current_step_index = idx;
+    country.sold_in_current_step = rem;
+
+    tokens_to_burn = q_units;
 
     if tokens_to_burn == 0 {
         return Ok(0);

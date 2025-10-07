@@ -22,4 +22,6 @@ pub enum DdError {
     WrongMode,
     #[msg("Curve not frozen")]
     CurveNotFrozen,
+    #[msg("Insufficient liquidity")]
+    InsufficientLiquidity,
 }

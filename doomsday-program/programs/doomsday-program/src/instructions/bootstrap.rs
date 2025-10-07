@@ -1,4 +1,6 @@
+use crate::constants::*;
 use anchor_lang::prelude::*;
+use anchor_spl::token_interface as token;
 
 pub fn init_global(ctx: Context<crate::InitGlobal>, round_ends_at_unix: i64) -> Result<()> {
     let g = &mut ctx.accounts.global;
@@ -64,9 +66,14 @@ pub fn init_country(
     c.supply_burned = 0;
     c.curve_fee_bp = crate::CURVE_FEE_BP_DEFAULT;
 
-    c.step_tokens = 1_000_000;
-    c.step_base_price_lamports = 1_000;
-    c.step_price_increment_lamports = 1_000;
+    // P0: base price per whole token (lamports)
+    c.step_base_price_lamports = 200; // 0.0000002 SOL per token
+
+    // k_e6: slope in *micro-lamports* per token^2 (fixed-point)
+    c.curve_slope_per_token_sq_e6 = 10; // 10e-6 lamports/token^2
+
+    // keep these just to encode cumulative units sold; they no longer affect price math
+    c.step_tokens = 10_000_000; // 0.01 token worth of units for indexing
     c.current_step_index = 0;
     c.sold_in_current_step = 0;
 
@@ -87,5 +94,25 @@ pub fn init_country(
 
     c.bump = ctx.bumps.country;
     g.countries_live = g.countries_live.saturating_add(1);
+
+    // Mint fixed max supply (1,000,000,000 tokens with TOKEN_DECIMALS) to the reserve vault.
+    let max_supply_raw: u64 =
+        MAX_SUPPLY.saturating_mul(10u64.saturating_pow(TOKEN_DECIMALS as u32));
+    if max_supply_raw > 0 {
+        let seeds: &[&[u8]] = &[AUTH_SEED, &[ctx.bumps.burn_mint_auth]];
+        token::mint_to(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                token::MintTo {
+                    mint: ctx.accounts.mint.to_account_info(),
+                    to: ctx.accounts.token_vault.to_account_info(),
+                    authority: ctx.accounts.burn_mint_auth.to_account_info(),
+                },
+                &[seeds],
+            ),
+            max_supply_raw,
+        )?;
+        c.supply_minted = c.supply_minted.saturating_add(max_supply_raw);
+    }
     Ok(())
 }

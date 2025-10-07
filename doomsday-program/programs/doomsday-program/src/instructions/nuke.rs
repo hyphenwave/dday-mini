@@ -1,37 +1,43 @@
+use crate::events::NukeLaunched;
 use anchor_lang::prelude::*;
 use anchor_spl::token::accessor;
 use anchor_spl::token_interface as token;
 
-use crate::*;
-use crate::events::SecondPrizeExecuted;
-
-pub fn execute_second_prize(
-    ctx: Context<crate::ExecuteSecondPrize>,
+pub fn launch_nuke(
+    ctx: Context<crate::LaunchNuke>,
+    target_country_id: u16,
+    random_country_id: u16,
     _raydium_ix_data: Option<Vec<u8>>,
 ) -> Result<()> {
     let g = &mut ctx.accounts.global;
     require!(!g.paused, crate::DdError::Paused);
-    require!(g.winner_country_id == ctx.accounts.winner_country.id, crate::DdError::Unauthorized);
-    require!(g.second_prize_claimed_round != g.round_index, crate::DdError::Unauthorized);
-    let pot = g.prize_pot_lamports;
-    require!(pot > 0, crate::DdError::InvalidAmount);
+    require!(!g.nuke_consumed_for_round, crate::DdError::NukeAlreadyUsed);
+    require!(
+        g.winner_country_id == ctx.accounts.winner_country.id,
+        crate::DdError::NotWinnerPresident
+    );
+    require!(
+        ctx.accounts.winner_country.president == ctx.accounts.president.key(),
+        crate::DdError::NotWinnerPresident
+    );
 
-    **ctx
-        .accounts
-        .global_account
-        .to_account_info()
-        .try_borrow_mut_lamports()? -= pot;
-    g.prize_pot_lamports = 0;
-    g.second_prize_claimed_round = g.round_index;
+    let target = &mut ctx.accounts.target_country;
+    require!(
+        matches!(target.status, crate::CountryStatus::Active),
+        crate::DdError::CountryNuked
+    );
+
+    let treasury = &ctx.accounts.target_sol_treasury;
+    let sol_rug = (treasury.lamports() as u128 * (crate::NUKE_RUG_BP as u128)
+        / (crate::BASIS_POINTS as u128)) as u64;
+    **treasury.to_account_info().try_borrow_mut_lamports()? -= sol_rug;
+
+    let buyback = sol_rug / 2;
+    let to_random = sol_rug - buyback;
 
     let mut burned: u64 = 0;
     if matches!(ctx.accounts.winner_country.mode, crate::MarketMode::Amm) {
         if let Some(data) = _raydium_ix_data {
-            **ctx
-                .accounts
-                .winner_sol_treasury
-                .to_account_info()
-                .try_borrow_mut_lamports()? += pot;
             require!(
                 crate::accounts_contains(
                     ctx.remaining_accounts,
@@ -55,7 +61,8 @@ pub fn execute_second_prize(
             );
 
             let before = accessor::amount(&ctx.accounts.winner_token_vault.to_account_info())?;
-            let signer_seeds: &[&[u8]] = &[crate::AUTH_SEED, &[ctx.accounts.auth.burn_mint_auth_bump]];
+            let signer_seeds: &[&[u8]] =
+                &[crate::AUTH_SEED, &[ctx.accounts.auth.burn_mint_auth_bump]];
             crate::cpi_raydium_swap(
                 ctx.accounts.winner_country.raydium_program,
                 ctx.remaining_accounts,
@@ -85,7 +92,8 @@ pub fn execute_second_prize(
                 burned = delta;
             }
         }
-    } else {
+    }
+    if burned == 0 {
         burned = crate::internal_buy_and_burn(
             &ctx.accounts.token_program,
             &ctx.accounts.winner_mint,
@@ -94,15 +102,26 @@ pub fn execute_second_prize(
             &ctx.accounts.burn_mint_auth,
             &ctx.accounts.auth,
             &mut ctx.accounts.winner_country,
-            pot,
+            buyback,
         )?;
     }
-    emit!(SecondPrizeExecuted {
+    **ctx
+        .accounts
+        .random_country_sol_treasury
+        .to_account_info()
+        .try_borrow_mut_lamports()? += to_random;
+
+    target.status = crate::CountryStatus::Nuked;
+    g.nuke_consumed_for_round = true;
+    g.countries_live = g.countries_live.saturating_sub(1);
+
+    emit!(NukeLaunched {
         round_index: g.round_index,
         winner_country_id: ctx.accounts.winner_country.id,
-        sol_spent: pot,
-        tokens_burned: burned,
-        mode: ctx.accounts.winner_country.mode,
+        target_country_id,
+        sol_rugged: sol_rug,
+        to_buyback: buyback,
+        to_random,
     });
     Ok(())
 }

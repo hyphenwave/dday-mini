@@ -9,6 +9,8 @@ pub const NUKE_RUG_BP: u64 = 10_000; // 100% of target SOL treasury is rugged
 pub const TOKEN_DECIMALS: u8 = 9; // All country mints use 9 decimals
 pub const MIGRATE_THRESHOLD_USD_E6_DEFAULT: u64 = 80_000_000; // $80k in 1e6 precision
 
+pub const MAX_SUPPLY: u64 = 1_000_000_000u64; // 1 billion tokens without TOKEN_DECIMALS (1 billion ** TOKEN_DECIMALS)
+
 pub const GLOBAL_SEED: &[u8] = b"GLOBAL";
 pub const COUNTRY_SEED: &[u8] = b"COUNTRY"; // + id.le_bytes()
 pub const TREASURY_SEED: &[u8] = b"TREASURY"; // + id.le_bytes()

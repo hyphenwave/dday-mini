@@ -14,6 +14,8 @@ pub fn init_global(ctx: Context<crate::InitGlobal>, round_ends_at_unix: i64) -> 
     g.paused = false;
     g.bump = ctx.bumps.global;
     g.second_prize_claimed_round = 0;
+    // seed authorized updaters with the authority
+    g.authorized_updaters = vec![g.authority];
 
     ctx.accounts.auth.burn_mint_auth_bump = ctx.bumps.burn_mint_auth;
     ctx.accounts.auth.bump = ctx.bumps.auth;
@@ -22,7 +24,11 @@ pub fn init_global(ctx: Context<crate::InitGlobal>, round_ends_at_unix: i64) -> 
 
 pub fn set_pause(ctx: Context<crate::SetPause>, paused: bool) -> Result<()> {
     require!(
-        ctx.accounts.authority.key() == ctx.accounts.global.authority,
+        ctx.accounts
+            .global
+            .authorized_updaters
+            .iter()
+            .any(|k| *k == ctx.accounts.authority.key()),
         crate::DdError::Unauthorized
     );
     ctx.accounts.global.paused = paused;
@@ -31,7 +37,11 @@ pub fn set_pause(ctx: Context<crate::SetPause>, paused: bool) -> Result<()> {
 
 pub fn set_country_pause(ctx: Context<crate::SetCountryPause>, paused: bool) -> Result<()> {
     require!(
-        ctx.accounts.authority.key() == ctx.accounts.global.authority,
+        ctx.accounts
+            .global
+            .authorized_updaters
+            .iter()
+            .any(|k| *k == ctx.accounts.authority.key()),
         crate::DdError::Unauthorized
     );
     ctx.accounts.country.paused = paused;
@@ -44,6 +54,15 @@ pub fn init_country(
     virtual_sol: u128,
     virtual_token: u128,
 ) -> Result<()> {
+    require!(
+        ctx.accounts
+            .global
+            .authorized_updaters
+            .iter()
+            .any(|k| *k == ctx.accounts.authority.key()),
+        crate::DdError::Unauthorized
+    );
+
     require!(
         id >= 1 && id <= crate::MAX_COUNTRIES,
         crate::DdError::InvalidAmount

@@ -50,6 +50,7 @@ pub use utils::*;
 declare_id!("7KfFEX13WEqj8LjQm2p3causqkGRp27ejHinsHRNWrdK");
 #[program]
 pub mod doomsday {
+
     use super::*;
 
     // removed: helper functions were causing fallback conflicts
@@ -204,6 +205,21 @@ pub mod doomsday {
         _raydium_ix_data: Option<Vec<u8>>,
     ) -> Result<()> {
         crate::instructions::prize::execute_second_prize(ctx, _raydium_ix_data)
+    }
+
+    // ===== Updaters management (gated by any authorized updater) =====
+    pub fn add_authorized_updater(
+        ctx: Context<AddAuthorizedUpdater>,
+        new_updater: Pubkey,
+    ) -> Result<()> {
+        crate::instructions::updaters::add_authorized_updater(ctx, new_updater)
+    }
+
+    pub fn remove_authorized_updater(
+        ctx: Context<RemoveAuthorizedUpdater>,
+        remove: Pubkey,
+    ) -> Result<()> {
+        crate::instructions::updaters::remove_authorized_updater(ctx, remove)
     }
 }
 

@@ -7,7 +7,11 @@ pub fn set_president_offchain(
     top_holder_free_balance: u64,
 ) -> Result<()> {
     require!(
-        ctx.accounts.updater.key() == ctx.accounts.global.authority,
+        ctx.accounts
+            .global
+            .authorized_updaters
+            .iter()
+            .any(|k| *k == ctx.accounts.updater.key()),
         crate::DdError::Unauthorized
     );
     let c = &mut ctx.accounts.country;
@@ -33,7 +37,11 @@ pub fn set_country_quote_offchain(
     observed_at: i64,
 ) -> Result<()> {
     require!(
-        ctx.accounts.updater.key() == ctx.accounts.global.authority,
+        ctx.accounts
+            .global
+            .authorized_updaters
+            .iter()
+            .any(|k| *k == ctx.accounts.updater.key()),
         crate::DdError::Unauthorized
     );
     let c = &mut ctx.accounts.country;
@@ -51,7 +59,9 @@ pub fn end_round(
 ) -> Result<()> {
     let g = &mut ctx.accounts.global;
     require!(
-        ctx.accounts.authority.key() == g.authority,
+        g.authorized_updaters
+            .iter()
+            .any(|k| *k == ctx.accounts.authority.key()),
         crate::DdError::Unauthorized
     );
     require!(

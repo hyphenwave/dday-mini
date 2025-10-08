@@ -8,7 +8,8 @@ use crate::*;
 pub struct InitGlobal<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
-    #[account(init, payer=authority, space=8 + 200, seeds=[GLOBAL_SEED], bump)]
+    // Extra space to accommodate authorized_updaters Vec<Pubkey>
+    #[account(init, payer=authority, space=8 + 1024, seeds=[GLOBAL_SEED], bump)]
     pub global: Account<'info, Global>,
 
     /// CHECK: global protocol treasury PDA (lamports holder)
@@ -237,6 +238,20 @@ pub struct SetCountryQuoteOffchain<'info> {
     pub global: Account<'info, Global>,
     #[account(mut, seeds=[COUNTRY_SEED, &country.id.to_le_bytes()], bump=country.bump)]
     pub country: Account<'info, Country>,
+}
+
+#[derive(Accounts)]
+pub struct AddAuthorizedUpdater<'info> {
+    pub updater: Signer<'info>,
+    #[account(mut, seeds=[GLOBAL_SEED], bump=global.bump)]
+    pub global: Account<'info, Global>,
+}
+
+#[derive(Accounts)]
+pub struct RemoveAuthorizedUpdater<'info> {
+    pub updater: Signer<'info>,
+    #[account(mut, seeds=[GLOBAL_SEED], bump=global.bump)]
+    pub global: Account<'info, Global>,
 }
 
 #[derive(Accounts)]

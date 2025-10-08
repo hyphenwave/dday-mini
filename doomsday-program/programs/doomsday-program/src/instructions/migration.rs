@@ -8,7 +8,11 @@ use crate::events::{CurveFrozen, MigratedToAmm};
 
 pub fn freeze_curve(ctx: Context<crate::FreezeCurve>) -> Result<()> {
     require!(
-        ctx.accounts.authority.key() == ctx.accounts.global.authority,
+        ctx.accounts
+            .global
+            .authorized_updaters
+            .iter()
+            .any(|k| *k == ctx.accounts.authority.key()),
         crate::DdError::Unauthorized
     );
     let c = &mut ctx.accounts.country;
@@ -31,7 +35,11 @@ pub fn seed_raydium_pool(
     raydium_ix_data: Vec<u8>,
 ) -> Result<()> {
     require!(
-        ctx.accounts.authority.key() == ctx.accounts.global.authority,
+        ctx.accounts
+            .global
+            .authorized_updaters
+            .iter()
+            .any(|k| *k == ctx.accounts.authority.key()),
         crate::DdError::Unauthorized
     );
     let c = &mut ctx.accounts.country;

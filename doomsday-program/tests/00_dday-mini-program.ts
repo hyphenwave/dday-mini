@@ -255,7 +255,7 @@ describe('Doomsday — curve→AMM happy path', () => {
         console.log('priceEvents', priceEvents)
 
         // --- SELL on curve ---
-        const tokensToSell = new BN(10e9) // sell 1 token
+        const tokensToSell = new BN(10e9) // sell 10 token
         const minSolOut = new BN(1) // any positive SOL
         const sellTx = await program.methods
           .sellOnCurve(minSolOut, tokensToSell)

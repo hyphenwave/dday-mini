@@ -4,6 +4,7 @@ pub mod migration;
 pub mod nuke;
 pub mod prize;
 pub mod round;
+pub mod updaters;
 pub mod view;
 
 pub use bootstrap::*;

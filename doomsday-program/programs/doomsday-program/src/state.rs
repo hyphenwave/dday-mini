@@ -49,6 +49,8 @@ pub struct Global {
     pub bump: u8,
     // Second prize lifecycle
     pub second_prize_claimed_round: u32, // round index that claimed the second prize (0 = none)
+    // Authorized off-chain updaters (includes `authority` by default)
+    pub authorized_updaters: Vec<Pubkey>,
 }
 
 #[account]

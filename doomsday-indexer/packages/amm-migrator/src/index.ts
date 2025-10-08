@@ -1,4 +1,3 @@
-import { Idl } from '@coral-xyz/anchor'
 import { Keypair } from '@solana/web3.js'
 import {
   createLogger,
@@ -6,7 +5,6 @@ import {
   validateConfig,
   RPCManager,
   DoomsdayClient,
-  getDoomsdayIdl,
   MarketMode,
 } from '@doomsday/shared'
 
@@ -21,10 +19,8 @@ async function main() {
     ])
     const connection = await rpcManager.getConnection()
 
-    const idl: Idl = getDoomsdayIdl()
-
     const wallet = Keypair.generate()
-    const client = new DoomsdayClient(connection, wallet, idl)
+    const client = new DoomsdayClient(connection, wallet)
 
     logger.logServiceStarted()
 

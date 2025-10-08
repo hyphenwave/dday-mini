@@ -1,5 +1,4 @@
 import * as anchor from '@coral-xyz/anchor'
-import { Idl } from '@coral-xyz/anchor'
 import { Keypair } from '@solana/web3.js'
 import {
   createLogger,
@@ -7,7 +6,6 @@ import {
   validateConfig,
   RPCManager,
   DoomsdayClient,
-  getDoomsdayIdl,
   MarketMode,
   QuoteSource,
   lamportsToSol,
@@ -24,11 +22,9 @@ async function main() {
     ])
     const connection = await rpcManager.getConnection()
 
-    const idl: Idl = getDoomsdayIdl()
-
     // Use a dummy wallet in dry-run; transactions will be skipped
     const wallet = Keypair.generate()
-    const client = idl ? new DoomsdayClient(connection, wallet, idl) : null
+    const client = new DoomsdayClient(connection, wallet)
 
     logger.logServiceStarted()
 
@@ -39,7 +35,6 @@ async function main() {
         await rpcManager.getConnection()
 
         // Fetch countries via client if available
-        if (!client) return
         const countries = await client.fetchAllCountries()
 
         for (const country of countries) {

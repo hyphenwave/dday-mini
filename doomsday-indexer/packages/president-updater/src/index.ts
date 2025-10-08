@@ -3,7 +3,6 @@ import {
   config,
   validateConfig,
   DoomsdayClient,
-  getDoomsdayIdl,
   CountryRegistry,
   findTopHolderForMint,
   sleep,
@@ -68,13 +67,12 @@ class PresidentUpdaterService {
 
         try {
           // Load IDL and set up program client
-          const idl = getDoomsdayIdl()
           const connection = new Connection(
             config.solana.rpcEndpoint,
             'confirmed'
           )
           const wallet = Keypair.generate()
-          const client = new DoomsdayClient(connection, wallet, idl)
+          const client = new DoomsdayClient(connection, wallet)
 
           // Fetch country to obtain mint and exclusion accounts; if not on-chain yet, fallback to registry
           const registry = new CountryRegistry()

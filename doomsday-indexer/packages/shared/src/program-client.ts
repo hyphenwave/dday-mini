@@ -1,7 +1,9 @@
-import { AnchorProvider, Program, Idl, Wallet } from '@coral-xyz/anchor'
+import { AnchorProvider, Program, Wallet } from '@coral-xyz/anchor'
 import { Connection, Keypair, PublicKey } from '@solana/web3.js'
 import * as anchor from '@coral-xyz/anchor'
 import { logger } from './logger'
+import { getDoomsdayIdl } from './idl'
+import type { Doomsday } from './utils/doomsday.idl'
 
 // Program ID from the Anchor.toml
 export const DOOMSDAY_PROGRAM_ID = new PublicKey(
@@ -122,10 +124,10 @@ class KeypairWallet implements Wallet {
 }
 
 export class DoomsdayClient {
-  private program: Program
+  private program: Program<Doomsday>
   private provider: AnchorProvider
 
-  constructor(connection: Connection, wallet: Keypair, idl: Idl) {
+  constructor(connection: Connection, wallet: Keypair) {
     // Create wallet adapter
     const walletAdapter = new KeypairWallet(wallet)
 
@@ -134,8 +136,11 @@ export class DoomsdayClient {
       commitment: 'confirmed',
     })
 
-    // Initialize program
-    this.program = new Program(idl, this.provider)
+    // Initialize typed program (Doomsday)
+    this.program = new Program<Doomsday>(
+      getDoomsdayIdl() as unknown as Doomsday,
+      this.provider
+    )
   }
 
   /**
@@ -233,14 +238,14 @@ export class DoomsdayClient {
   ) {
     try {
       const [countryPDA] = this.getCountryPDA(countryId)
-      const [globalPDA] = this.getGlobalPDA()
 
       const tx = await this.program.methods
         .setPresidentOffchain(president, topHolderAmount)
-        .accounts({
+        .accountsPartial({
           country: countryPDA,
-          global: globalPDA,
-          authority: this.provider.wallet.publicKey,
+        })
+        .accounts({
+          updater: this.provider.wallet.publicKey,
         })
         .rpc()
 
@@ -259,18 +264,23 @@ export class DoomsdayClient {
     countryId: number,
     priceQ64: anchor.BN,
     marketcap: anchor.BN,
-    source: QuoteSource
+    source: QuoteSource,
+    observedAtUnix?: number
   ) {
     try {
       const [countryPDA] = this.getCountryPDA(countryId)
-      const [globalPDA] = this.getGlobalPDA()
+
+      const observedAt = new anchor.BN(
+        observedAtUnix ?? Math.floor(Date.now() / 1000)
+      )
 
       const tx = await this.program.methods
-        .updateQuote(priceQ64, marketcap, source)
-        .accounts({
+        .setCountryQuoteOffchain(priceQ64, marketcap, source, observedAt)
+        .accountsPartial({
           country: countryPDA,
-          global: globalPDA,
-          authority: this.provider.wallet.publicKey,
+        })
+        .accounts({
+          updater: this.provider.wallet.publicKey,
         })
         .rpc()
 
@@ -291,8 +301,10 @@ export class DoomsdayClient {
 
       const tx = await this.program.methods
         .endRound(winnerCountryId, nextRoundEndsAt)
-        .accounts({
+        .accountsPartial({
           global: globalPDA,
+        })
+        .accounts({
           authority: this.provider.wallet.publicKey,
         })
         .rpc()
@@ -311,13 +323,13 @@ export class DoomsdayClient {
   async freezeCurve(countryId: number) {
     try {
       const [countryPDA] = this.getCountryPDA(countryId)
-      const [globalPDA] = this.getGlobalPDA()
 
       const tx = await this.program.methods
         .freezeCurve()
-        .accounts({
+        .accountsPartial({
           country: countryPDA,
-          global: globalPDA,
+        })
+        .accounts({
           authority: this.provider.wallet.publicKey,
         })
         .rpc()
@@ -355,7 +367,7 @@ export class DoomsdayClient {
   /**
    * Get program instance for direct access
    */
-  getProgram(): Program {
+  getProgram(): Program<Doomsday> {
     return this.program
   }
 

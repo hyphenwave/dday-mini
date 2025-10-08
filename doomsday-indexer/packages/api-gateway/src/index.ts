@@ -9,7 +9,6 @@ import {
   validateConfig,
   RPCManager,
   CountryRegistry,
-  getDoomsdayIdl,
 } from '@doomsday/shared'
 
 const logger = createLogger('api-gateway')
@@ -60,10 +59,9 @@ async function bootstrap() {
           config.solana.backupRpc,
         ])
         const connection = await rm.getConnection()
-        const idl = getDoomsdayIdl()
         const { DoomsdayClient } = require('@doomsday/shared')
         const { Keypair } = require('@solana/web3.js')
-        const client = new DoomsdayClient(connection, Keypair.generate(), idl)
+        const client = new DoomsdayClient(connection, Keypair.generate())
         const global = await client.fetchGlobal()
         if (!global) {
           res.status(503).json({ error: 'unavailable' })

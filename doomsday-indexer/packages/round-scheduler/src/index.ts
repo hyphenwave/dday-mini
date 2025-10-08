@@ -1,5 +1,4 @@
 import * as anchor from '@coral-xyz/anchor'
-import { Idl } from '@coral-xyz/anchor'
 import Redis from 'ioredis'
 import { Keypair } from '@solana/web3.js'
 import {
@@ -8,7 +7,6 @@ import {
   validateConfig,
   RPCManager,
   DoomsdayClient,
-  getDoomsdayIdl,
   calculateRoundDuration,
   getCurrentTimestamp,
 } from '@doomsday/shared'
@@ -29,10 +27,8 @@ async function main() {
     ])
     const connection = await rpcManager.getConnection()
 
-    const idl: Idl = getDoomsdayIdl()
-
     const wallet = Keypair.generate()
-    const client = new DoomsdayClient(connection, wallet, idl)
+    const client = new DoomsdayClient(connection, wallet)
 
     logger.logServiceStarted()
 

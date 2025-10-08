@@ -14,6 +14,34 @@ export type Doomsday = {
   }
   instructions: [
     {
+      name: 'addAuthorizedUpdater'
+      discriminator: [16, 116, 173, 76, 1, 216, 209, 153]
+      accounts: [
+        {
+          name: 'updater'
+          signer: true
+        },
+        {
+          name: 'global'
+          writable: true
+          pda: {
+            seeds: [
+              {
+                kind: 'const'
+                value: [71, 76, 79, 66, 65, 76]
+              },
+            ]
+          }
+        },
+      ]
+      args: [
+        {
+          name: 'newUpdater'
+          type: 'pubkey'
+        },
+      ]
+    },
+    {
       name: 'buyOnCurve'
       discriminator: [6, 20, 84, 191, 116, 79, 21, 147]
       accounts: [
@@ -435,6 +463,14 @@ export type Doomsday = {
         {
           name: 'global'
           writable: true
+          pda: {
+            seeds: [
+              {
+                kind: 'const'
+                value: [71, 76, 79, 66, 65, 76]
+              },
+            ]
+          }
         },
         {
           name: 'authority'
@@ -798,6 +834,34 @@ export type Doomsday = {
           type: {
             option: 'bytes'
           }
+        },
+      ]
+    },
+    {
+      name: 'removeAuthorizedUpdater'
+      discriminator: [213, 178, 15, 133, 138, 146, 141, 115]
+      accounts: [
+        {
+          name: 'updater'
+          signer: true
+        },
+        {
+          name: 'global'
+          writable: true
+          pda: {
+            seeds: [
+              {
+                kind: 'const'
+                value: [71, 76, 79, 66, 65, 76]
+              },
+            ]
+          }
+        },
+      ]
+      args: [
+        {
+          name: 'remove'
+          type: 'pubkey'
         },
       ]
     },
@@ -1745,6 +1809,12 @@ export type Doomsday = {
           {
             name: 'secondPrizeClaimedRound'
             type: 'u32'
+          },
+          {
+            name: 'authorizedUpdaters'
+            type: {
+              vec: 'pubkey'
+            }
           },
         ]
       }

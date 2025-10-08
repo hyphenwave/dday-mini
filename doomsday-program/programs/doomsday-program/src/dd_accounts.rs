@@ -59,7 +59,7 @@ pub struct WithdrawProtocolFees<'info> {
 #[derive(Accounts)]
 #[instruction(id: u16, virtual_sol: u128, virtual_token: u128)]
 pub struct InitCountry<'info> {
-    #[account(mut, has_one=authority)]
+    #[account(mut,seeds=[GLOBAL_SEED], bump=global.bump, has_one=authority)]
     pub global: Account<'info, Global>,
     #[account(mut)]
     pub authority: Signer<'info>,

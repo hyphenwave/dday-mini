@@ -1,5 +1,6 @@
 import * as anchor from '@coral-xyz/anchor'
 import { Idl } from '@coral-xyz/anchor'
+import Redis from 'ioredis'
 import { Keypair } from '@solana/web3.js'
 import {
   createLogger,
@@ -13,6 +14,11 @@ import {
 } from '@doomsday/shared'
 
 const logger = createLogger('round-scheduler')
+const redis = new Redis({
+  host: config.redis.host,
+  port: config.redis.port,
+  password: config.redis.password,
+})
 
 async function main() {
   try {
@@ -38,6 +44,18 @@ async function main() {
         const now = getCurrentTimestamp()
         const endsAt = global.roundEndsAtUnix.toNumber()
         if (now >= endsAt) {
+          const lockKey = `round:settle:${global.roundIndex}`
+          // use ioredis options object to satisfy typings
+          const lock = await (redis as any).set(lockKey, '1', {
+            NX: true,
+            EX: 60,
+          })
+          if (!lock) {
+            logger.debug(
+              `Settlement already in progress for round ${global.roundIndex}`
+            )
+            return
+          }
           const countries = await client.fetchAllCountries()
           let winnerId = 0
           let maxMc = -Infinity

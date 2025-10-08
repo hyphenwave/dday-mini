@@ -2,12 +2,14 @@ import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
 import rateLimit from 'express-rate-limit'
+import client from 'prom-client'
 import {
   createLogger,
   config,
   validateConfig,
   RPCManager,
   CountryRegistry,
+  getDoomsdayIdl,
 } from '@doomsday/shared'
 
 const logger = createLogger('api-gateway')
@@ -29,6 +31,13 @@ async function bootstrap() {
       })
     )
 
+    // Prometheus metrics
+    client.collectDefaultMetrics({ prefix: 'doomsday_api_' })
+    app.get('/metrics', async (_req, res) => {
+      res.set('Content-Type', client.register.contentType)
+      res.end(await client.register.metrics())
+    })
+
     const rpcManager = new RPCManager(config.solana.rpcEndpoint, [
       config.solana.backupRpc,
     ])
@@ -43,6 +52,33 @@ async function bootstrap() {
       const registry = new CountryRegistry()
       const countries = registry.list()
       res.json({ count: countries.length, countries })
+    })
+
+    app.get('/api/round', async (_req, res) => {
+      try {
+        const rm = new RPCManager(config.solana.rpcEndpoint, [
+          config.solana.backupRpc,
+        ])
+        const connection = await rm.getConnection()
+        const idl = getDoomsdayIdl()
+        const { DoomsdayClient } = require('@doomsday/shared')
+        const { Keypair } = require('@solana/web3.js')
+        const client = new DoomsdayClient(connection, Keypair.generate(), idl)
+        const global = await client.fetchGlobal()
+        if (!global) {
+          res.status(503).json({ error: 'unavailable' })
+          return
+        }
+        res.json({
+          roundIndex: global.roundIndex,
+          roundEndsAt: global.roundEndsAtUnix.toString(),
+          winnerCountryId: global.winnerCountryId || null,
+          countriesLive: global.countriesLive,
+          paused: global.paused,
+        })
+      } catch (e: any) {
+        res.status(500).json({ error: String(e?.message || e) })
+      }
     })
 
     const port = config.api.port

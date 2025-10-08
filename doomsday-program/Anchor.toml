@@ -16,6 +16,8 @@ cluster = "localnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
-test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/03_buy-withdraw-fees.ts"
+#test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/03_buy-withdraw-fees.ts"
 #test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
 #test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/02_updaters.ts"
+test = "RUST_LOG=debug yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/04_pause-and-end-round.ts"
+test_nuke_flow = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/08_nuke-flow.ts"

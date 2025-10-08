@@ -198,15 +198,7 @@ describe('Doomsday — curve→AMM happy path', () => {
         const initCountryTx = await program.methods
           .initCountry(countryId, vSol, vTok)
           .accounts({
-            global: globalPda,
-            // authority: wallet.publicKey,
             mint: mintPk,
-            // tokenVault: tokenVaultAta,
-            // solTreasury: solTreasuryPda, // ← must exist → patch in Rust makes it init
-            // burnMintAuth: burnMintAuthPda,
-            // tokenProgram: TOKEN_2022_PROGRAM_ID,
-            //associatedTokenProgram: anchor.utils.token.ASSOCIATED_PROGRAM_ID, // from @coral-xyz/anchor
-            //systemProgram: SystemProgram.programId,
           })
           .rpc()
         console.log('init_country tx', countryId + ' ' + initCountryTx)

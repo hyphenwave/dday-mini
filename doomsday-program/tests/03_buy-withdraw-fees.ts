@@ -174,7 +174,7 @@ describe('buy then withdraw protocol fees', () => {
       await program.methods
         .withdrawProtocolFees(new BN(1))
         .accounts({
-          authority: outsider.publicKey,
+          authority: wallet.publicKey,
           recipient: outsider.publicKey,
         })
         .signers([outsider])

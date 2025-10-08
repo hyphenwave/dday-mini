@@ -113,6 +113,7 @@ export async function ensureGlobalAndCountry(
     id
   )
   const conn = provider.connection
+  console.log('globalPda', globalPda.toBase58())
   const globalInfo = await conn.getAccountInfo(globalPda)
 
   if (!globalInfo) {
@@ -121,7 +122,7 @@ export async function ensureGlobalAndCountry(
       .accounts({ authority: provider.wallet.publicKey })
       .rpc()
   }
-
+  console.log('countryPda', countryPda.toBase58())
   const countryInfo = await conn.getAccountInfo(countryPda)
 
   let mintPk: PublicKey | null = null
@@ -129,7 +130,7 @@ export async function ensureGlobalAndCountry(
     mintPk = await createMint2022(provider, authPda, 9)
     await program.methods
       .initCountry(id, new BN(0), new BN(0))
-      .accounts({ global: globalPda, mint: mintPk })
+      .accounts({ mint: mintPk })
       .rpc()
   }
 

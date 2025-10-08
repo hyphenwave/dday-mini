@@ -6,6 +6,7 @@ import {
   getDoomsdayIdl,
   CountryRegistry,
   findTopHolderForMint,
+  sleep,
 } from '@doomsday/shared'
 import { Connection, Keypair, PublicKey } from '@solana/web3.js'
 import * as anchor from '@coral-xyz/anchor'
@@ -130,16 +131,43 @@ class PresidentUpdaterService {
             return
           }
 
-          if (!config.service.enableDryRun) {
-            await client.setPresidentOffchain(countryId, topOwner, topAmount)
-            logger.info(
-              `Set president for ${countryId} to ${topOwner.toBase58()}`
-            )
+          // Read cache; skip if unchanged
+          const cacheKey = `president:${countryId}`
+          let cached: { owner: string; amount: string } | null = null
+          try {
+            const raw = await redis.get(cacheKey)
+            if (raw) cached = JSON.parse(raw)
+          } catch {}
+
+          const nextOwner = topOwner.toBase58()
+          const nextAmount = topAmount.toString()
+          const unchanged =
+            cached && cached.owner === nextOwner && cached.amount === nextAmount
+
+          if (!unchanged) {
+            if (!config.service.enableDryRun) {
+              await client.setPresidentOffchain(countryId, topOwner, topAmount)
+              logger.info(
+                `Set president for ${countryId} to ${topOwner.toBase58()}`
+              )
+            } else {
+              logger.debug(`DryRun: would set president for ${countryId}`, {
+                owner: nextOwner,
+                amount: nextAmount,
+              })
+            }
+
+            // Update cache
+            try {
+              await redis.set(
+                cacheKey,
+                JSON.stringify({ owner: nextOwner, amount: nextAmount }),
+                'EX',
+                60 * 60
+              )
+            } catch {}
           } else {
-            logger.debug(`DryRun: would set president for ${countryId}`, {
-              owner: topOwner.toBase58(),
-              amount: topAmount.toString(),
-            })
+            logger.debug(`President unchanged for country ${countryId}`)
           }
 
           logger.info(`Successfully updated president for country ${countryId}`)
@@ -153,7 +181,7 @@ class PresidentUpdaterService {
       },
       {
         connection: redis,
-        concurrency: 5,
+        concurrency: 20,
       }
     )
 
@@ -169,6 +197,15 @@ class PresidentUpdaterService {
   private async scheduleRecurringJobs() {
     // Schedule updates for all 211 countries
     for (let countryId = 1; countryId <= 211; countryId++) {
+      // stagger initial scheduling to spread load
+      const jitter = Math.floor(
+        Math.random() *
+          Math.min(
+            60000,
+            Math.max(1000, config.service.presidentUpdateIntervalMs / 4)
+          )
+      )
+      if (jitter > 0) await sleep(jitter)
       await presidentQueue.add(
         `update-country-${countryId}`,
         { countryId },

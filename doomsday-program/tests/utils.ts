@@ -120,7 +120,6 @@ export async function ensureGlobalAndCountry(
       .initGlobal(new BN(roundEndsUnix))
       .accounts({ authority: provider.wallet.publicKey })
       .rpc()
-    console.log('countryInfo')
   }
 
   const countryInfo = await conn.getAccountInfo(countryPda)

@@ -79,3 +79,47 @@ pub fn end_round(
     g.round_ends_at_unix = next_end_unix;
     Ok(())
 }
+
+/// Transfers the right to launch the nuke (i.e., winner president privilege) to a new president
+/// if the current president cannot or does not launch the nuke in time.
+/// Gated by authorized updaters; updates only the winner country's president.
+pub fn transfer_winner_nuke(
+    ctx: Context<crate::TransferWinnerNuke>,
+    new_president: Pubkey,
+    top_holder_free_balance: u64,
+) -> Result<()> {
+    // Must be an authorized updater
+    require!(
+        ctx.accounts
+            .global
+            .authorized_updaters
+            .iter()
+            .any(|k| *k == ctx.accounts.updater.key()),
+        crate::DdError::Unauthorized
+    );
+    // Nuke must not have been consumed for this round yet
+    require!(
+        !ctx.accounts.global.nuke_consumed_for_round,
+        crate::DdError::NukeAlreadyUsed
+    );
+    // Winner country only
+    require!(
+        ctx.accounts.global.winner_country_id == ctx.accounts.country.id,
+        crate::DdError::Unauthorized
+    );
+    // Winner country should be Active
+    require!(
+        matches!(ctx.accounts.country.status, crate::CountryStatus::Active),
+        crate::DdError::CountryNuked
+    );
+    // Update president and top holder cache
+    let c = &mut ctx.accounts.country;
+    c.president = new_president;
+    c.top_holder_cached = top_holder_free_balance;
+    emit!(PresidentUpdated {
+        country: c.id,
+        president: new_president,
+        top_holder: top_holder_free_balance
+    });
+    Ok(())
+}

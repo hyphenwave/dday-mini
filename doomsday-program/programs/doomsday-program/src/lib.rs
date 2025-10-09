@@ -186,6 +186,18 @@ pub mod doomsday {
         crate::instructions::round::end_round(ctx, winner_country_id, next_end_unix)
     }
 
+    pub fn transfer_winner_nuke(
+        ctx: Context<TransferWinnerNuke>,
+        new_president: Pubkey,
+        top_holder_free_balance: u64,
+    ) -> Result<()> {
+        crate::instructions::round::transfer_winner_nuke(
+            ctx,
+            new_president,
+            top_holder_free_balance,
+        )
+    }
+
     pub fn launch_nuke(
         ctx: Context<LaunchNuke>,
         target_country_id: u16,

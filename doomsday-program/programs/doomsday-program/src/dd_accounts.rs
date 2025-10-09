@@ -241,6 +241,15 @@ pub struct SetCountryQuoteOffchain<'info> {
 }
 
 #[derive(Accounts)]
+pub struct TransferWinnerNuke<'info> {
+    pub updater: Signer<'info>,
+    #[account(seeds=[GLOBAL_SEED], bump=global.bump)]
+    pub global: Account<'info, Global>,
+    #[account(mut, seeds=[COUNTRY_SEED, &country.id.to_le_bytes()], bump=country.bump)]
+    pub country: Account<'info, Country>,
+}
+
+#[derive(Accounts)]
 pub struct AddAuthorizedUpdater<'info> {
     pub updater: Signer<'info>,
     #[account(mut, seeds=[GLOBAL_SEED], bump=global.bump)]

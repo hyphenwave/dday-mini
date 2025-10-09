@@ -99,7 +99,6 @@ pub fn init_country(
     c.president = Pubkey::default();
     c.top_holder_cached = 0;
 
-    c.migrate_threshold_usd_e6 = crate::MIGRATE_THRESHOLD_USD_E6_DEFAULT;
     c.raydium_pool_state = Pubkey::default();
     c.raydium_vault_a = Pubkey::default();
     c.raydium_vault_b = Pubkey::default();

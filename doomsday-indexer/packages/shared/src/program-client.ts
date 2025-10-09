@@ -377,4 +377,29 @@ export class DoomsdayClient {
   getProvider(): AnchorProvider {
     return this.provider
   }
+
+  // ---- Events ----
+  async onBondingReachedIndexed(
+    handler: (e: any, slot: number, sig?: string) => void
+  ): Promise<() => Promise<void>> {
+    const id = await (this.program as any).addEventListener(
+      'BondingReachedIndexed',
+      (event: any, slot: number, sig?: string) => handler(event, slot, sig)
+    )
+    return async () => {
+      await (this.program as any).removeEventListener(id)
+    }
+  }
+
+  async onNukeLaunchedIndexed(
+    handler: (e: any, slot: number, sig?: string) => void
+  ): Promise<() => Promise<void>> {
+    const id = await (this.program as any).addEventListener(
+      'NukeLaunchedIndexed',
+      (event: any, slot: number, sig?: string) => handler(event, slot, sig)
+    )
+    return async () => {
+      await (this.program as any).removeEventListener(id)
+    }
+  }
 }

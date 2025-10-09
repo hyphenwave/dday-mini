@@ -1,6 +1,6 @@
 use crate::events::SecondPrizeExecuted;
 use anchor_lang::prelude::*;
-use anchor_spl::token::accessor;
+use anchor_spl::token::{self as spl_token, accessor};
 use anchor_spl::token_interface as token;
 
 pub fn execute_second_prize(
@@ -31,11 +31,19 @@ pub fn execute_second_prize(
     let mut burned: u64 = 0;
     if matches!(ctx.accounts.winner_country.mode, crate::MarketMode::Amm) {
         if let Some(data) = _raydium_ix_data {
+            // Wrap pot lamports into PDA-owned WSOL ATA
             **ctx
                 .accounts
-                .winner_sol_treasury
+                .wsol_ata
                 .to_account_info()
                 .try_borrow_mut_lamports()? += pot;
+            // SyncNative so WSOL amount reflects lamports
+            spl_token::sync_native(CpiContext::new(
+                ctx.accounts.token_program_classic.to_account_info(),
+                spl_token::SyncNative {
+                    account: ctx.accounts.wsol_ata.to_account_info(),
+                },
+            ))?;
             require!(
                 crate::accounts_contains(
                     ctx.remaining_accounts,

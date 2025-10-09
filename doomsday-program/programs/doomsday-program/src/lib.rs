@@ -118,17 +118,19 @@ pub mod doomsday {
         crate::instructions::migration::freeze_curve(ctx)
     }
 
-    /// Transfers seeding liquidity into program-owned custody (PDA) and records Raydium pool.
-    /// SOL moves from country treasury to the program signer PDA; tokens move from program vault
-    /// to a PDA-owned token account. This ensures the program owns liquidity and can later
-    /// add/remove liquidity via CPI. Finally, it records Raydium pool addresses and flips mode → Amm.
+    /// Create Raydium pool + add liquidity via CPI, wrapping SOL to WSOL under the hood,
+    /// and persist custody info (LP mint + PDA LP ATA) before switching mode → Amm.
     pub fn seed_raydium_pool(
         ctx: Context<SeedRaydiumPool>,
         raydium_program: Pubkey,
         pool_state: Pubkey,
         raydium_vault_a: Pubkey,
         raydium_vault_b: Pubkey,
-        raydium_ix_data: Vec<u8>,
+        lp_mint: Pubkey,
+        sol_seed_lamports: u64,
+        token_seed_amount: u64,
+        create_ix_data: Vec<u8>,
+        deposit_ix_data: Vec<u8>,
     ) -> Result<()> {
         crate::instructions::migration::seed_raydium_pool(
             ctx,
@@ -136,7 +138,11 @@ pub mod doomsday {
             pool_state,
             raydium_vault_a,
             raydium_vault_b,
-            raydium_ix_data,
+            lp_mint,
+            sol_seed_lamports,
+            token_seed_amount,
+            create_ix_data,
+            deposit_ix_data,
         )
     }
 
@@ -202,13 +208,25 @@ pub mod doomsday {
         ctx: Context<LaunchNuke>,
         target_country_id: u16,
         random_country_id: u16,
-        _raydium_ix_data: Option<Vec<u8>>,
     ) -> Result<()> {
-        crate::instructions::nuke::launch_nuke(
+        crate::instructions::nuke::launch_nuke(ctx, target_country_id, random_country_id)
+    }
+
+    pub fn execute_nuke(
+        ctx: Context<ExecuteNuke>,
+        target_country_id: u16,
+        random_country_id: u16,
+        raydium_withdraw_ix_data: Option<Vec<u8>>,
+        winner_swap_ix_data: Option<Vec<u8>>,
+        random_swap_ix_data: Option<Vec<u8>>,
+    ) -> Result<()> {
+        crate::instructions::nuke::execute_nuke(
             ctx,
             target_country_id,
             random_country_id,
-            _raydium_ix_data,
+            raydium_withdraw_ix_data,
+            winner_swap_ix_data,
+            random_swap_ix_data,
         )
     }
 
@@ -257,7 +275,7 @@ fn internal_buy_and_burn<'info>(
 
     // Determine tokens to buy and burn using continuous linear curve.
     // We reuse the same integral used in buy_on_curve.
-    let mut budget = sol_in; // lamports available for buyback
+    let budget = sol_in; // lamports available for buyback
     let mut tokens_to_burn: u64 = 0;
     let vault_amount = accessor::amount(&token_vault.to_account_info())?;
 

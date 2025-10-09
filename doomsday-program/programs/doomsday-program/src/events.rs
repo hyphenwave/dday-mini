@@ -39,9 +39,27 @@ pub struct NukeLaunched {
     pub round_index: u32,
     pub winner_country_id: u16,
     pub target_country_id: u16,
-    pub sol_rugged: u64,
-    pub to_buyback: u64,
-    pub to_random: u64,
+    pub random_country_id: u16,
+    pub sol_pulled: u64,
+    pub to_winner_buyback: u64,
+    pub to_random_buyback: u64,
+    pub winner_tokens_burned: u64,
+    pub random_tokens_burned: u64,
+}
+
+#[event]
+pub struct NukeLaunchedIndexed {
+    pub round_index: u32,
+    pub winner_country_id: u16,
+    pub target_country_id: u16,
+    pub random_country_id: u16,
+}
+
+#[event]
+pub struct BondingReachedIndexed {
+    pub round_index: u32,
+    pub country_id: u16,
+    pub treasury_lamports: u64,
 }
 
 #[event]

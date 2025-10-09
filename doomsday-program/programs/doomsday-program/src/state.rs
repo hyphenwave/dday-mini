@@ -91,6 +91,10 @@ pub struct Country {
     pub raydium_vault_a: Pubkey, // token vault (country mint)
     pub raydium_vault_b: Pubkey, // quote vault (WSOL)
     pub raydium_program: Pubkey,
+
+    pub raydium_lp_mint: Pubkey,  // LP mint
+    pub raydium_lp_vault: Pubkey, // PDA-owned LP ATA (owner = burn_mint_auth PDA)
+
     pub migrated_at_ts: i64,
 
     // Quote cache (optional, off-chain maintained)

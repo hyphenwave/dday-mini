@@ -3,7 +3,7 @@ use anchor_lang::solana_program::{program::invoke, system_instruction};
 use anchor_spl::token::accessor;
 use anchor_spl::token_interface as token;
 
-use crate::events::{BoughtOnCurve, SoldOnCurve};
+use crate::events::{BondingReachedIndexed, BoughtOnCurve, SoldOnCurve};
 use crate::utils::{ceil_div_u128, floor_div_u128, fold_units, unfold_units};
 
 pub fn buy_on_curve(
@@ -170,6 +170,16 @@ pub fn buy_on_curve(
     } else {
         // no budget/inventory → just enforce slippage = 0
         require!(0 >= min_tokens_out, crate::DdError::Slippage);
+    }
+
+    // Bonding threshold: emit when treasury >= 500 SOL
+    let treasury_after = ctx.accounts.sol_treasury.lamports();
+    if treasury_after >= crate::MIGRATE_THRESHOLD_SOL_DEFAULT * 1_000_000_000 {
+        emit!(BondingReachedIndexed {
+            round_index: ctx.accounts.global.round_index,
+            country_id: c.id,
+            treasury_lamports: treasury_after,
+        });
     }
 
     Ok(())

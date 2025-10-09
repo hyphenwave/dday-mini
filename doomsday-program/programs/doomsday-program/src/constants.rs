@@ -1,5 +1,3 @@
-use anchor_lang::prelude::*;
-
 pub const MAX_COUNTRIES: u16 = 211;
 pub const BASIS_POINTS: u64 = 10_000; // 100% = 10000 bp
 
@@ -7,7 +5,7 @@ pub const GLOBAL_TAX_BP: u64 = 50; // 0.50% to global prize pot
 pub const CURVE_FEE_BP_DEFAULT: u64 = 100; // 1.00% protocol fee (kept in treasury)
 pub const NUKE_RUG_BP: u64 = 10_000; // 100% of target SOL treasury is rugged
 pub const TOKEN_DECIMALS: u8 = 9; // All country mints use 9 decimals
-pub const MIGRATE_THRESHOLD_USD_E6_DEFAULT: u64 = 80_000_000; // $80k in 1e6 precision
+pub const MIGRATE_THRESHOLD_SOL_DEFAULT: u64 = 400; // 400 SOL
 
 pub const MAX_SUPPLY: u64 = 1_000_000_000u64; // 1 billion tokens without TOKEN_DECIMALS (1 billion ** TOKEN_DECIMALS)
 

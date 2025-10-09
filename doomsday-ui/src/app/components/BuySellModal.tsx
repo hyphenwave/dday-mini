@@ -8,6 +8,8 @@ import {
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { useEffect, useMemo, useState } from 'react'
+import { useWallet } from '@solana/wallet-adapter-react'
+import { walletModalController } from './WalletModal'
 import { ArrowDownUp, ChevronDown } from 'lucide-react'
 import {
   LineChart,
@@ -64,6 +66,7 @@ export function BuySellModal({
   availableBaseBalance = 0,
   availableTokenBalance = 0,
 }: BuySellModalProps) {
+  const { connected } = useWallet()
   const [tradeType, setTradeType] = useState<'buy' | 'sell'>('buy')
   const [topAmount, setTopAmount] = useState<string>('0')
 
@@ -112,6 +115,12 @@ export function BuySellModal({
     return (
       <Dialog open={open} onOpenChange={onClose}>
         <DialogContent className="bg-[#0a0f1e] border-[#3BE2FF] text-white max-w-md p-6">
+          <VisuallyHidden.Root>
+            <DialogTitle>No country selected</DialogTitle>
+            <DialogDescription>
+              Trade modal requires a country
+            </DialogDescription>
+          </VisuallyHidden.Root>
           <div className="text-center text-gray-400">No country selected</div>
         </DialogContent>
       </Dialog>
@@ -394,17 +403,26 @@ export function BuySellModal({
             </div>
 
             {/* Action Button */}
-            <Button
-              className={`w-full h-11 ${
-                tradeType === 'buy'
-                  ? 'bg-[#3BE2FF] text-black hover:bg-[#3BE2FF]/80'
-                  : 'bg-[#FF4B4B] text-white hover:bg-[#FF4B4B]/80'
-              }`}
-            >
-              {tradeType === 'buy'
-                ? `Buy ${tokenTicker}`
-                : `Sell ${tokenTicker}`}
-            </Button>
+            {connected ? (
+              <Button
+                className={`w-full h-11 ${
+                  tradeType === 'buy'
+                    ? 'bg-[#3BE2FF] text-black hover:bg-[#3BE2FF]/80'
+                    : 'bg-[#FF4B4B] text-white hover:bg-[#FF4B4B]/80'
+                }`}
+              >
+                {tradeType === 'buy'
+                  ? `Buy ${tokenTicker}`
+                  : `Sell ${tokenTicker}`}
+              </Button>
+            ) : (
+              <Button
+                onClick={() => walletModalController.open()}
+                className="w-full h-11 bg-[#1a1f3a] border border-[#3BE2FF] text-[#3BE2FF] hover:bg-[#3BE2FF]/10"
+              >
+                Connect Wallet
+              </Button>
+            )}
           </div>
         </div>
       </DialogContent>

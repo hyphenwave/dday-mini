@@ -1,4 +1,6 @@
 import { mockCountries, ChatMessage } from '../lib/mockData'
+import { useWallet } from '@solana/wallet-adapter-react'
+import { truncateAddress } from '../lib/utils'
 import { ScrollArea } from './ui/scroll-area'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs'
 import { Wallet, MessageSquare } from 'lucide-react'
@@ -91,17 +93,21 @@ export function LeftSidebar({
 }
 
 function WalletContent() {
+  const { publicKey } = useWallet()
+  const address = publicKey?.toBase58() ?? ''
   return (
     <>
       {/* Top Info */}
       <div className="p-4 border-b border-[#1a1f3a]">
         <div className="space-y-3">
-          <div>
-            <div className="text-xs text-gray-400 mb-1">Your Wallet</div>
-            <div className="text-[#3BE2FF] text-sm font-mono truncate">
-              0xc8C1c63b.....10A47930A
+          {publicKey && (
+            <div>
+              <div className="text-xs text-gray-400 mb-1">Your Wallet</div>
+              <div className="text-[#3BE2FF] text-sm font-mono truncate">
+                {truncateAddress(address, 10, 10)}
+              </div>
             </div>
-          </div>
+          )}
           <div className="grid grid-cols-2 gap-2">
             <div className="bg-[#1a1f3a] rounded p-2">
               <div className="text-xs text-gray-400">EPOCH</div>

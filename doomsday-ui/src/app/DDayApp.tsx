@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { DndProvider } from 'react-dnd'
 import { HTML5Backend } from 'react-dnd-html5-backend'
 import { Header } from './components/Header'
+import { useWallet } from '@solana/wallet-adapter-react'
 import { LeftSidebar } from './components/LeftSidebar'
 import { WorldMap } from './components/WorldMap'
 import { Leaderboard } from './components/Leaderboard'
@@ -11,6 +12,7 @@ import { Intel } from './components/Intel'
 import { CountryInfoCard } from './components/CountryInfoCard'
 import { BuySellModal } from './components/BuySellModal'
 import { NukeLaunchModal } from './components/NukeLaunchModal'
+import { UsernameModal } from './components/UsernameModal'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs'
 import {
   mockCountries,
@@ -146,10 +148,19 @@ function RightSidebar({
 }
 
 function AppContent() {
+  const { connected, publicKey, disconnect } = useWallet()
+  const [username, setUsername] = useState<string | null>(null)
+  const [askUsername, setAskUsername] = useState(false)
+
+  useEffect(() => {
+    if (!connected || !publicKey) return
+    // TODO: Replace with on-chain fetch when integrated
+    setAskUsername(true)
+  }, [connected, publicKey])
   const [selectedCountry, setSelectedCountry] = useState<Country | null>(null)
   const [tradeCountry, setTradeCountry] = useState<Country | null>(null)
   const [buySellModalOpen, setBuySellModalOpen] = useState(false)
-  const [modalBaseSymbol, setModalBaseSymbol] = useState<'SOL' | 'ETH'>('ETH')
+  const [modalBaseSymbol, setModalBaseSymbol] = useState<'SOL'>('SOL')
   const [nukeModalOpen, setNukeModalOpen] = useState(false)
   const [activeTab, setActiveTab] = useState('leaderboard')
   const [messages, setMessages] = useState<ChatMessage[]>(mockMessages)
@@ -278,35 +289,37 @@ function AppContent() {
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left Sidebar */}
-        <div
-          ref={(node) => {
-            dropLeftRef(node)
-          }}
-          className="relative flex flex-col min-h-0"
-          style={{
-            backgroundColor: isOverLeft
-              ? 'rgba(59, 226, 255, 0.15)'
-              : 'transparent',
-            transition: 'background-color 0.2s ease',
-            border: isOverLeft
-              ? '1px solid rgba(59, 226, 255, 0.3)'
-              : '1px solid transparent',
-            boxShadow: isOverLeft
-              ? '0 0 20px rgba(59, 226, 255, 0.25)'
-              : 'none',
-          }}
-        >
-          <LeftSidebar
-            showChat={chatLocation === 'left'}
-            messages={messages}
-            onSendMessage={handleSendMessage}
-            chatLocation={chatLocation}
-            dragLeftRef={dragLeftRef}
-            dragRightRef={dragRightRef}
-            isDragging={isDraggingChat}
-            key={`left-${chatLocation}`}
-          />
-        </div>
+        {connected && (
+          <div
+            ref={(node) => {
+              dropLeftRef(node)
+            }}
+            className="relative flex flex-col min-h-0"
+            style={{
+              backgroundColor: isOverLeft
+                ? 'rgba(59, 226, 255, 0.15)'
+                : 'transparent',
+              transition: 'background-color 0.2s ease',
+              border: isOverLeft
+                ? '1px solid rgba(59, 226, 255, 0.3)'
+                : '1px solid transparent',
+              boxShadow: isOverLeft
+                ? '0 0 20px rgba(59, 226, 255, 0.25)'
+                : 'none',
+            }}
+          >
+            <LeftSidebar
+              showChat={chatLocation === 'left'}
+              messages={messages}
+              onSendMessage={handleSendMessage}
+              chatLocation={chatLocation}
+              dragLeftRef={dragLeftRef}
+              dragRightRef={dragRightRef}
+              isDragging={isDraggingChat}
+              key={`left-${chatLocation}`}
+            />
+          </div>
+        )}
 
         {/* Map Area */}
         <div className="flex-1 relative bg-black min-h-0">
@@ -332,9 +345,19 @@ function AppContent() {
             className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-[#0a0f1e] border border-[#3BE2FF] rounded-xl px-5 py-3 shadow-xl"
             style={{ minWidth: 340 }}
           >
-            <div className="text-[#3BE2FF] text-sm font-mono text-center">
-              0xc8C1c63b.....10A47930A
-            </div>
+            {connected && publicKey ? (
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-[#3BE2FF] text-sm font-mono">
+                  {username ?? 'Set username'}
+                </div>
+                <button
+                  onClick={() => disconnect()}
+                  className="text-xs text-gray-400 hover:text-white"
+                >
+                  Disconnect
+                </button>
+              </div>
+            ) : null}
             <button
               onClick={openSwapFromBadge}
               className="mt-2 w-full bg-[#3BE2FF] text-black text-sm py-2 rounded-lg cursor-pointer hover:bg-[#3BE2FF]/85"
@@ -395,6 +418,12 @@ function AppContent() {
         onLaunch={() => {
           console.log('Nuke launched at', selectedCountry?.name)
         }}
+      />
+
+      <UsernameModal
+        open={askUsername && !!connected && !!publicKey}
+        onClose={() => setAskUsername(false)}
+        onSaved={(name) => setUsername(name)}
       />
 
       {/* Minimal drag preview chip */}

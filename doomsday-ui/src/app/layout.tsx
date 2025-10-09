@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
+import { SolanaWalletProviders } from './providers/solana-wallet'
+import { WalletModalProvider } from './components/WalletModal'
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -13,7 +15,7 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'World PvP - Solana Game',
+  title: 'Doomsday PvP - Solana Game',
   description:
     '211 countries compete for the highest market cap in this Solana-based PvP game',
 }
@@ -28,7 +30,10 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <SolanaWalletProviders>
+          {children}
+          <WalletModalProvider />
+        </SolanaWalletProviders>
       </body>
     </html>
   )

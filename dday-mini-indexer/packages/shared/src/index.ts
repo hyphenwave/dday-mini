@@ -4,6 +4,7 @@ export * from './rpc-manager';
 export * from './config';
 export * from './types';
 export * from './utils';
+export * from './database';
 
 // Export specific items from program-client (avoiding conflicts with types)
 export {

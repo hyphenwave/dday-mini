@@ -7,6 +7,13 @@
     "packages/*"
   ],
   "scripts": {
+    "db:start": "docker-compose up -d postgres redis",
+    "db:stop": "docker-compose down",
+    "db:reset": "docker-compose down -v && docker-compose up -d postgres redis",
+    "db:logs": "docker-compose logs -f postgres",
+    "local:setup": "./scripts/setup-local.sh",
+    "local:test": "node test/test-db-connection.js",
+    "local:psql": "PGPASSWORD=doomsday_secure_pwd_2024 psql -U doomsday_admin -d doomsday_game",
     "dev": "concurrently \"npm run dev:*\"",
     "dev:president": "npm run dev --workspace=president-updater",
     "dev:price": "npm run dev --workspace=price-updater",
@@ -29,6 +36,7 @@
   "devDependencies": {
     "@types/jest": "^29.5.12",
     "@types/node": "^20.11.30",
+    "@types/pg": "^8.15.5",
     "@typescript-eslint/eslint-plugin": "^7.3.1",
     "@typescript-eslint/parser": "^7.3.1",
     "concurrently": "^8.2.2",
@@ -43,5 +51,12 @@
   "engines": {
     "node": ">=18.0.0",
     "npm": ">=9.0.0"
+  },
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.32.1",
+    "@solana/web3.js": "^1.98.4",
+    "dotenv": "^17.2.3",
+    "pg": "^8.16.3",
+    "typeorm": "^0.3.27"
   }
 }

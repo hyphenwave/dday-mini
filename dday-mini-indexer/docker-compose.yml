@@ -1,0 +1,120 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: world-pvp-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    networks:
+      - world-pvp-network
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: world-pvp-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: doomsday_game
+      POSTGRES_USER: doomsday_admin
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-doomsday_secure_pwd_2024}
+      PGDATA: /data/postgres
+    volumes:
+      - postgres_data:/data/postgres
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - world-pvp-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U doomsday_admin -d doomsday_game"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  president-updater:
+    build:
+      context: .
+      dockerfile: ./packages/president-updater/Dockerfile
+    container_name: world-pvp-president-updater
+    env_file: .env
+    depends_on:
+      - redis
+    networks:
+      - world-pvp-network
+    restart: unless-stopped
+
+  price-updater:
+    build:
+      context: .
+      dockerfile: ./packages/price-updater/Dockerfile
+    container_name: world-pvp-price-updater
+    env_file: .env
+    depends_on:
+      - redis
+    networks:
+      - world-pvp-network
+    restart: unless-stopped
+
+  round-scheduler:
+    build:
+      context: .
+      dockerfile: ./packages/round-scheduler/Dockerfile
+    container_name: world-pvp-round-scheduler
+    env_file: .env
+    depends_on:
+      - redis
+    networks:
+      - world-pvp-network
+    restart: unless-stopped
+
+  amm-migrator:
+    build:
+      context: .
+      dockerfile: ./packages/amm-migrator/Dockerfile
+    container_name: world-pvp-amm-migrator
+    env_file: .env
+    depends_on:
+      - redis
+    networks:
+      - world-pvp-network
+    restart: unless-stopped
+
+  buyback-orchestrator:
+    build:
+      context: .
+      dockerfile: ./packages/buyback-orchestrator/Dockerfile
+    container_name: world-pvp-buyback-orchestrator
+    env_file: .env
+    depends_on:
+      - redis
+    networks:
+      - world-pvp-network
+    restart: unless-stopped
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: ./packages/api-gateway/Dockerfile
+    container_name: world-pvp-api-gateway
+    ports:
+      - "3000:3000"
+      - "9090:9090"
+    env_file: .env
+    depends_on:
+      - redis
+      - president-updater
+      - price-updater
+      - round-scheduler
+    networks:
+      - world-pvp-network
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+  postgres_data:
+
+networks:
+  world-pvp-network:
+    driver: bridge
